@@ -16,6 +16,7 @@ import type { CombatListener } from '../systems/CombatSystem.js'
 import { SpawnDirector } from '../systems/SpawnDirector.js'
 import type { SpawnListener } from '../systems/SpawnDirector.js'
 import type { RunRecords } from '../systems/RunRecords.js'
+import { IconButton } from '../ui/IconButton.js'
 import { Hud } from './Hud.js'
 
 export interface PlayParams {
@@ -45,6 +46,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
   private readonly hud = new Hud()
   private readonly ui = new UiLayer()
   private readonly menuButtons: Button[] = []
+  private readonly controls: IconButton[] = []
 
   private combat: CombatSystem | null = null
   private director: SpawnDirector | null = null
@@ -106,15 +108,16 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     this.hintPhase = 0
     this.repeatTimer = 0
     this.heldDirection = 0
-    this.buildPauseMenu()
+    this.buildUi()
   }
 
   protected override onExit(): void {
     this.ui.clear()
     this.menuButtons.length = 0
+    this.controls.length = 0
   }
 
-  private buildPauseMenu(): void {
+  private buildUi(): void {
     const safe = this.context.viewport.safeArea
     const centerX = safe.x + safe.width / 2
     const centerY = safe.y + safe.height / 2
@@ -122,6 +125,38 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
 
     this.ui.clear()
     this.menuButtons.length = 0
+    this.controls.length = 0
+
+    const size = 46
+    const margin = 16
+    const pauseButton = this.ui.add(
+      new IconButton({
+        x: safe.x + safe.width - margin - size,
+        y: safe.y + margin,
+        width: size,
+        height: size,
+        icon: 'pause',
+      }),
+    )
+    pauseButton.onActivate.on(() => {
+      this.context.audio.play('uiTap')
+      this.togglePause()
+    })
+
+    const restartButton = this.ui.add(
+      new IconButton({
+        x: safe.x + safe.width - margin * 2 - size * 2,
+        y: safe.y + margin,
+        width: size,
+        height: size,
+        icon: 'restart',
+      }),
+    )
+    restartButton.onActivate.on(() => {
+      this.context.audio.play('uiTap')
+      this.restart()
+    })
+    this.controls.push(pauseButton, restartButton)
 
     const resume = this.ui.add(
       new Button({
@@ -173,7 +208,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
 
   override resize(width: number, height: number): void {
     this.field.resize(width, height)
-    this.buildPauseMenu()
+    this.buildUi()
     if (this.state === 'paused') this.setMenuVisible(true)
   }
 
@@ -194,6 +229,8 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       this.ui.update(dt)
       return
     }
+    if (this.state === 'running') this.ui.handleInput(input)
+    this.ui.update(dt)
 
     if (!this.gameplayStarted && input.hasInteracted) this.beginGameplay()
 
@@ -215,6 +252,10 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     this.combat?.update(dt)
     this.deathTimer -= dt
     if (this.deathTimer <= 0) this.finishRun()
+  }
+
+  private pointerOverControls(x: number, y: number): boolean {
+    return this.controls.some((button) => button.hitTest(x, y))
   }
 
   private readSteering(dt: number): void {
@@ -253,7 +294,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       this.lastPointerY = input.y
       this.pointerMode = true
     }
-    if (this.pointerMode && input.hasInteracted) {
+    if (this.pointerMode && input.hasInteracted && !this.pointerOverControls(input.x, input.y)) {
       this.paddle.setLane(this.field.nearestLane(input.x, input.y), this.field)
     }
   }
@@ -491,6 +532,8 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
 
     renderer.pop()
 
+    for (const button of this.controls) button.render(renderer)
+
     this.hud.render(renderer, {
       score: this.score.score,
       combo: this.score.combo,
@@ -583,6 +626,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       fill: PALETTE.background,
       alpha: 0.72,
     })
+    for (const button of this.controls) button.render(renderer)
     renderer.text('ПАУЗА', safe.x + safe.width / 2, safe.y + safe.height / 2 - 42, {
       fill: PALETTE.ink,
       size: 38,
@@ -590,11 +634,11 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       align: 'center',
       baseline: 'middle',
     })
-    this.ui.render(renderer)
+    for (const button of this.menuButtons) button.render(renderer)
     renderer.text(
       'ПРОБІЛ / ESC — пауза · R — нова гра · ← → — рух',
       safe.x + safe.width / 2,
-      safe.y + safe.height - 26,
+      safe.y + safe.height / 2 + 138,
       {
         fill: PALETTE.inkMuted,
         size: 12,

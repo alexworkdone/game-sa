@@ -13,17 +13,20 @@ export class Field {
 
   readonly laneCount = BALANCE.field.laneCount
 
+  readonly fanAngle = (BALANCE.field.fanDegrees * Math.PI) / 180
+
   resize(width: number, height: number): void {
-    const available = height - BALANCE.field.topMargin - BALANCE.field.bottomMargin
-    this.outerRadius = Math.max(
-      40,
-      Math.min(width * BALANCE.field.radiusWidthRatio, available),
-    )
     this.pivotX = width / 2
-    this.pivotY = Math.min(
-      height - BALANCE.field.bottomMargin,
-      (height + this.outerRadius) / 2 + this.outerRadius * 0.1,
-    )
+    this.pivotY = height - BALANCE.field.bottomMargin
+
+    const byHeight = this.pivotY - BALANCE.field.topMargin
+    const byWidth =
+      (width / 2 - BALANCE.field.sideMargin) / Math.sin(this.fanAngle / 2)
+    this.outerRadius = Math.max(60, Math.min(byWidth, byHeight))
+  }
+
+  get fanStart(): number {
+    return -Math.PI / 2 - this.fanAngle / 2
   }
 
   get paddleOrbit(): number {
@@ -31,11 +34,11 @@ export class Field {
   }
 
   get laneSpan(): number {
-    return Math.PI / this.laneCount
+    return this.fanAngle / this.laneCount
   }
 
   laneAngle(index: number): number {
-    return -Math.PI + (index + 0.5) * this.laneSpan
+    return this.fanStart + (index + 0.5) * this.laneSpan
   }
 
   lanePoint(index: number, distance: number): Point {
@@ -54,9 +57,10 @@ export class Field {
   }
 
   nearestLane(x: number, y: number): number {
-    let angle = Math.atan2(y - this.pivotY, x - this.pivotX)
-    if (angle > 0) angle = angle > Math.PI / 2 ? -Math.PI : 0
-    const normalized = (angle + Math.PI) / Math.PI
+    const dx = x - this.pivotX
+    const angle = Math.atan2(y - this.pivotY, dx)
+    if (angle >= 0) return dx < 0 ? 0 : this.laneCount - 1
+    const normalized = (angle - this.fanStart) / this.fanAngle
     return clamp(Math.floor(normalized * this.laneCount), 0, this.laneCount - 1)
   }
 

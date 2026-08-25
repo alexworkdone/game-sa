@@ -33,11 +33,11 @@ export class Hud {
     })
 
     if (data.multiplier > 1) {
-      renderer.text(`x${data.multiplier}`, safe.x + safe.width - 22, top + 4, {
+      renderer.text(`x${data.multiplier}`, centerX, top + 52, {
         fill: PALETTE.reward,
-        size: 22,
+        size: 20,
         weight: 800,
-        align: 'right',
+        align: 'center',
         baseline: 'top',
         glow: PALETTE.reward,
         glowSize: 10,
@@ -47,7 +47,7 @@ export class Hud {
     if (data.combo >= 2) {
       const barWidth = 110
       const barX = centerX - barWidth / 2
-      const barY = top + 56
+      const barY = top + (data.multiplier > 1 ? 78 : 56)
       renderer.roundRect(barX, barY, barWidth, 4, 2, { fill: PALETTE.grid })
       renderer.roundRect(barX, barY, barWidth * data.comboRatio, 4, 2, {
         fill: PALETTE.reward,

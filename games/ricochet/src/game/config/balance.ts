@@ -1,10 +1,11 @@
 export const BALANCE = {
   field: {
-    radiusWidthRatio: 0.47,
-    topMargin: 46,
-    bottomMargin: 66,
+    fanDegrees: 64,
+    sideMargin: 26,
+    topMargin: 52,
+    bottomMargin: 70,
     laneCount: 5,
-    paddleOrbitRatio: 0.32,
+    paddleOrbitRatio: 0.45,
   },
   core: {
     radius: 24,
@@ -13,8 +14,8 @@ export const BALANCE = {
     pulseSpeed: 1.6,
   },
   paddle: {
-    arcRatio: 0.86,
-    thickness: 14,
+    arcRatio: 0.9,
+    thickness: 16,
     snapTime: 0.07,
     ghostFade: 0.18,
   },
@@ -42,8 +43,8 @@ export const BALANCE = {
   },
   ramp: {
     seconds: 80,
-    speedStart: 150,
-    speedEnd: 330,
+    speedStart: 130,
+    speedEnd: 280,
   },
   score: {
     perCatch: 10,

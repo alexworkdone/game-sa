@@ -83,10 +83,11 @@ export class PlayerCore {
     const total = BALANCE.charge.maxSegments
     const ringRadius = coreRadius * 1.7
     const gap = 0.16
-    const span = (Math.PI - gap * (total - 1)) / total
+    const arc = Math.PI * 1.15
+    const span = (arc - gap * (total - 1)) / total
 
     for (let i = 0; i < total; i++) {
-      const start = -Math.PI + i * (span + gap)
+      const start = -Math.PI - (arc - Math.PI) / 2 + i * (span + gap)
       const filled = i < charge.segments
       const partial = i === charge.segments ? charge.fillRatio : 0
 

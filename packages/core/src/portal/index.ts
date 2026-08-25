@@ -1,0 +1,5 @@
+export type { IPortal } from './IPortal.js'
+export { NullPortal } from './NullPortal.js'
+export type { NullPortalOptions } from './NullPortal.js'
+export { GuardedPortal } from './GuardedPortal.js'
+export type { PortalViolation } from './GuardedPortal.js'

@@ -33,7 +33,7 @@ export class PulseSystem {
     for (const pulse of this.pool) {
       if (!pulse.active) continue
       pulse.distance -= BALANCE.charge.pulseSpeed * dt
-      if (pulse.distance > BALANCE.core.radius) continue
+      if (pulse.distance > BALANCE.container.radius) continue
       pulse.active = false
       onArrive(pulse.lane)
     }

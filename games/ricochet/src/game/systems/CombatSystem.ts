@@ -2,39 +2,34 @@ import { BALANCE } from '../config/balance.js'
 import type { Bullet } from '../entities/Bullet.js'
 import type { Field } from '../entities/Field.js'
 import type { Paddle } from '../entities/Paddle.js'
-import type { PlayerCore } from '../entities/PlayerCore.js'
+import type { Container } from '../entities/Container.js'
 import type { BulletPool } from './BulletPool.js'
-import type { ChargeSystem } from './ChargeSystem.js'
 
 export interface CombatListener {
   onAbsorb(bullet: Bullet, distance: number): void
-  onShieldSave(bullet: Bullet): void
-  onCoreHit(bullet: Bullet): void
+  onContainerHit(bullet: Bullet): void
 }
 
 export interface CombatDependencies {
   readonly field: Field
-  readonly core: PlayerCore
+  readonly container: Container
   readonly paddle: Paddle
   readonly bullets: BulletPool
-  readonly charge: ChargeSystem
   readonly listener: CombatListener
 }
 
 export class CombatSystem {
   private readonly field: Field
-  private readonly core: PlayerCore
+  private readonly container: Container
   private readonly paddle: Paddle
   private readonly bullets: BulletPool
-  private readonly charge: ChargeSystem
   private readonly listener: CombatListener
 
   constructor(dependencies: CombatDependencies) {
     this.field = dependencies.field
-    this.core = dependencies.core
+    this.container = dependencies.container
     this.paddle = dependencies.paddle
     this.bullets = dependencies.bullets
-    this.charge = dependencies.charge
     this.listener = dependencies.listener
   }
 
@@ -42,7 +37,7 @@ export class CombatSystem {
     this.bullets.advance(dt)
 
     const orbit = this.field.paddleOrbit
-    const band = BALANCE.paddle.thickness / 2
+    const band = BALANCE.paddle.screenHeight / 2
 
     for (const bullet of this.bullets.items) {
       if (!bullet.active) continue
@@ -60,13 +55,9 @@ export class CombatSystem {
         continue
       }
 
-      if (distance <= BALANCE.core.radius + bullet.radius) {
+      if (distance <= BALANCE.container.radius + bullet.radius) {
         bullet.kill()
-        if (this.charge.consume()) {
-          this.listener.onShieldSave(bullet)
-          continue
-        }
-        if (this.core.takeDamage()) this.listener.onCoreHit(bullet)
+        if (this.container.takeDamage()) this.listener.onContainerHit(bullet)
       }
     }
   }

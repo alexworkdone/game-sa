@@ -1,21 +1,23 @@
 export const BALANCE = {
   field: {
-    fanDegrees: 64,
+    fanDegrees: 78,
     sideMargin: 26,
-    topMargin: 52,
-    bottomMargin: 70,
+    topMargin: 34,
+    bottomMargin: 104,
     laneCount: 5,
-    paddleOrbitRatio: 0.45,
+    paddleOrbitRatio: 0.28,
   },
-  core: {
-    radius: 24,
+  container: {
+    radius: 30,
+    width: 124,
+    height: 84,
     maxHp: 3,
     invulnerability: 1.2,
     pulseSpeed: 1.6,
   },
   paddle: {
-    arcRatio: 0.9,
-    thickness: 16,
+    screenWidth: 22,
+    screenHeight: 14,
     snapTime: 0.07,
     ghostFade: 0.18,
   },
@@ -26,8 +28,8 @@ export const BALANCE = {
   },
   charge: {
     unitsPerCatch: 1,
-    unitsPerSegment: 16,
-    maxSegments: 3,
+    unitsPerModule: 16,
+    maxModules: 3,
     pulseSpeed: 820,
   },
   spawn: {

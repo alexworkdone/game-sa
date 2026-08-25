@@ -45,60 +45,66 @@ export class Paddle {
     this.impact = Math.max(0, this.impact - dt * 5)
   }
 
-  private plateEnds(field: Field, angle: number): [number, number, number, number] {
-    const orbit = field.paddleOrbit
-    const half = (field.laneSpan * BALANCE.paddle.arcRatio) / 2
-    const start = field.pointAt(angle - half, orbit)
-    const end = field.pointAt(angle + half, orbit)
-    return [start.x, start.y, end.x, end.y]
+  private renderScreen(
+    renderer: IRenderer,
+    field: Field,
+    angle: number,
+    alpha: number,
+    grow: number,
+  ): void {
+    const point = field.pointAt(angle, field.paddleOrbit)
+    const width = BALANCE.paddle.screenWidth * (1 + grow * 0.12)
+    const height = BALANCE.paddle.screenHeight * (1 + grow * 0.3)
+
+    renderer.push()
+    renderer.translate(point.x, point.y)
+    renderer.rotate(angle + Math.PI / 2)
+    renderer.roundRect(-width / 2, -height / 2, width, height, 5, {
+      fill: PALETTE.ink,
+      alpha,
+      glow: PALETTE.friendly,
+      glowSize: 10 + grow * 26,
+    })
+    renderer.roundRect(-width / 2 + 3, -height / 2 + 3, width - 6, height - 6, 3, {
+      fill: PALETTE.friendly,
+      alpha: alpha * (0.6 + grow * 0.4),
+    })
+    renderer.pop()
   }
 
-  render(renderer: IRenderer, field: Field): void {
+  render(renderer: IRenderer, field: Field, damage = 0): void {
     const orbit = field.paddleOrbit
-    const half = (field.laneSpan * BALANCE.paddle.arcRatio) / 2
 
     if (this.ghostFade > 0) {
       const fade = Ease.outQuad(this.ghostFade)
-      renderer.arc(
-        field.pivotX,
-        field.pivotY,
-        orbit,
-        this.ghostAngle - half,
-        this.ghostAngle + half,
-        BALANCE.paddle.thickness * 0.7,
-        { stroke: PALETTE.friendly, alpha: fade * 0.28 },
-      )
+      this.renderScreen(renderer, field, this.ghostAngle, fade * 0.3, 0)
     }
 
-    const thickness = BALANCE.paddle.thickness + this.impact * 7
-    renderer.arc(
-      field.pivotX,
-      field.pivotY,
-      orbit,
-      this.displayAngle - half,
-      this.displayAngle + half,
-      thickness,
-      {
-        stroke: PALETTE.ink,
-        glow: PALETTE.friendly,
-        glowSize: 12 + this.impact * 28,
-      },
-    )
-    renderer.arc(
-      field.pivotX,
-      field.pivotY,
-      orbit,
-      this.displayAngle - half * 0.92,
-      this.displayAngle + half * 0.92,
-      Math.max(1, thickness * 0.3),
-      { stroke: PALETTE.friendly, alpha: 0.7 + this.impact * 0.3 },
-    )
+    this.renderScreen(renderer, field, this.displayAngle, 1, this.impact)
 
-    const arm = field.pointAt(this.displayAngle, orbit)
-    renderer.line(field.pivotX, field.pivotY, arm.x, arm.y, 2, {
-      stroke: PALETTE.friendly,
-      alpha: 0.18,
+    const base = field.pointAt(this.displayAngle, BALANCE.container.height * 0.4)
+    const tip = field.pointAt(this.displayAngle, orbit - BALANCE.paddle.screenHeight * 0.4)
+    const flicker = damage > 0 && Math.random() < damage * 0.35
+    renderer.line(base.x, base.y, tip.x, tip.y, 6, {
+      stroke: PALETTE.grid,
+      alpha: flicker ? 0.35 : 1,
     })
-    void this.plateEnds
+    renderer.line(base.x, base.y, tip.x, tip.y, 2, {
+      stroke: damage > 0.6 ? PALETTE.hostile : PALETTE.friendly,
+      alpha: flicker ? 0.15 : 0.35 - damage * 0.15,
+    })
+    if (damage > 0) {
+      const spot = 0.3 + Math.random() * 0.5
+      const sparkX = base.x + (tip.x - base.x) * spot
+      const sparkY = base.y + (tip.y - base.y) * spot
+      if (Math.random() < damage * 0.25) {
+        renderer.circle(sparkX, sparkY, 2 + Math.random() * 2, {
+          fill: PALETTE.hostile,
+          glow: PALETTE.hostile,
+          glowSize: 10,
+        })
+      }
+    }
+    renderer.circle(base.x, base.y, 5, { fill: PALETTE.grid })
   }
 }

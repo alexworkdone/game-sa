@@ -1,7 +1,7 @@
 import { SeededRandom } from '@sa/core'
 import { BALANCE } from '../src/game/config/balance.js'
 import { Field } from '../src/game/entities/Field.js'
-import { PlayerCore } from '../src/game/entities/PlayerCore.js'
+import { Container } from '../src/game/entities/Container.js'
 import { Paddle } from '../src/game/entities/Paddle.js'
 import type { Bullet } from '../src/game/entities/Bullet.js'
 import { BulletPool } from '../src/game/systems/BulletPool.js'
@@ -21,13 +21,13 @@ export interface SimResult {
   readonly score: number
   readonly catches: number
   readonly misses: number
-  readonly saves: number
+  readonly modules: number
   readonly bestCombo: number
 }
 
 class BotRun implements CombatListener, SpawnListener {
   private readonly field = new Field()
-  private readonly core = new PlayerCore()
+  private readonly container = new Container()
   private readonly paddle = new Paddle()
   private readonly bullets = new BulletPool()
   private readonly charge = new ChargeSystem()
@@ -43,7 +43,7 @@ class BotRun implements CombatListener, SpawnListener {
 
   catches = 0
   misses = 0
-  saves = 0
+  modules = 0
 
   constructor(seed: string, skill: number) {
     this.reaction = 0.12 + (1 - skill) * 0.4
@@ -52,10 +52,9 @@ class BotRun implements CombatListener, SpawnListener {
     this.paddle.reset(this.field)
     this.combat = new CombatSystem({
       field: this.field,
-      core: this.core,
+      container: this.container,
       paddle: this.paddle,
       bullets: this.bullets,
-      charge: this.charge,
       listener: this,
     })
     this.director = new SpawnDirector({
@@ -91,11 +90,11 @@ class BotRun implements CombatListener, SpawnListener {
 
   run(): SimResult {
     this.director.start()
-    while (this.core.alive && this.elapsed < MAX_SECONDS) {
+    while (this.container.alive && this.elapsed < MAX_SECONDS) {
       this.elapsed += STEP
       this.steer(STEP)
       this.paddle.update(STEP, this.field)
-      this.core.update(STEP)
+      this.container.update(STEP)
       this.score.update(STEP)
       this.pulses.update(STEP, () => this.charge.add())
       this.director.update(STEP)
@@ -106,7 +105,7 @@ class BotRun implements CombatListener, SpawnListener {
       score: this.score.score,
       catches: this.catches,
       misses: this.misses,
-      saves: this.saves,
+      modules: this.charge.modules,
       bestCombo: this.score.bestCombo,
     }
   }
@@ -117,12 +116,7 @@ class BotRun implements CombatListener, SpawnListener {
     this.pulses.spawn(bullet.lane, distance)
   }
 
-  onShieldSave(): void {
-    this.saves += 1
-    this.score.registerMiss()
-  }
-
-  onCoreHit(): void {
+  onContainerHit(): void {
     this.misses += 1
     this.score.registerMiss()
   }
@@ -160,7 +154,7 @@ console.log(
   `доріжок: ${BALANCE.field.laneCount}, телеграф: ${BALANCE.spawn.telegraph} c, ` +
     `рампа: ${BALANCE.ramp.seconds} c\n`,
 )
-console.log('профіль    сек(мед)  сек(сер)  очки(мед)  спіймано  заряд-щит  промахів  комбо')
+console.log('профіль    сек(мед)  сек(сер)  очки(мед)  спіймано  модулів  промахів  комбо')
 
 for (const { label, skill } of profiles) {
   const results: SimResult[] = []
@@ -175,9 +169,9 @@ for (const { label, skill } of profiles) {
       .toFixed(0)
       .padStart(9)}  ${average(results.map((r) => r.catches))
       .toFixed(1)
-      .padStart(8)}  ${average(results.map((r) => r.saves))
+      .padStart(8)}  ${average(results.map((r) => r.modules))
       .toFixed(2)
-      .padStart(9)}  ${average(results.map((r) => r.misses))
+      .padStart(8)}  ${average(results.map((r) => r.misses))
       .toFixed(2)
       .padStart(8)}  ${average(results.map((r) => r.bestCombo))
       .toFixed(1)

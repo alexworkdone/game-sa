@@ -4,7 +4,7 @@ import { BALANCE } from '../config/balance.js'
 import { PALETTE } from '../config/palette.js'
 import { UI_THEME } from '../config/theme.js'
 import { Field } from '../entities/Field.js'
-import { PlayerCore } from '../entities/PlayerCore.js'
+import { Container } from '../entities/Container.js'
 import { Paddle } from '../entities/Paddle.js'
 import type { Bullet } from '../entities/Bullet.js'
 import { BulletPool } from '../systems/BulletPool.js'
@@ -37,7 +37,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
 
   private readonly records: RunRecords
   private readonly field = new Field()
-  private readonly core = new PlayerCore()
+  private readonly container = new Container()
   private readonly paddle = new Paddle()
   private readonly bullets = new BulletPool()
   private readonly charge = new ChargeSystem()
@@ -76,7 +76,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
 
     const { renderer, juice } = this.context
     this.field.resize(renderer.width, renderer.height)
-    this.core.reset()
+    this.container.reset()
     this.paddle.reset(this.field)
     this.bullets.clear()
     this.charge.reset()
@@ -86,10 +86,9 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
 
     this.combat = new CombatSystem({
       field: this.field,
-      core: this.core,
+      container: this.container,
       paddle: this.paddle,
       bullets: this.bullets,
-      charge: this.charge,
       listener: this,
     })
     this.director = new SpawnDirector({
@@ -238,14 +237,14 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     this.hintPhase += dt
     if (this.state === 'running') this.readSteering(dt)
     this.paddle.update(dt, this.field)
-    this.core.update(dt)
+    this.container.update(dt)
     this.score.update(dt)
     this.pulses.update(dt, (lane) => this.onPulseArrived(lane))
 
     if (this.state === 'running') {
       this.director?.update(dt)
       this.combat?.update(dt)
-      if (!this.core.alive) this.beginDeath()
+      if (!this.container.alive) this.beginDeath()
       return
     }
 
@@ -362,6 +361,8 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     const summary = this.records.submit({
       score: this.score.score,
       catches: this.score.catches,
+      modules: this.charge.modules,
+      percent: this.charge.percent,
       bestCombo: this.score.bestCombo,
       durationMs: Math.round(this.elapsed * 1000),
       daily: this.params.daily,
@@ -433,6 +434,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     const completed = this.charge.add()
     if (!completed) return
 
+    this.container.flashGeneration()
     audio.play('chargeUp')
     juice.shake.add(BALANCE.juice.chargeGainShake)
     juice.particles.emit({
@@ -450,8 +452,8 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     })
     juice.texts.spawn({
       x: this.field.pivotX,
-      y: this.field.pivotY - BALANCE.core.radius * 2.6,
-      value: 'ЗАРЯД',
+      y: this.field.pivotY - BALANCE.container.height * 2.6,
+      value: 'МОДУЛЬ ЗІБРАНО',
       color: PALETTE.reward,
       size: 20,
       life: 0.9,
@@ -459,36 +461,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     })
   }
 
-  onShieldSave(bullet: Bullet): void {
-    const { juice, audio } = this.context
-    juice.hitStop.freeze(0.09)
-    juice.shake.add(BALANCE.juice.shieldSaveShake)
-    juice.particles.emit({
-      x: bullet.x,
-      y: bullet.y,
-      count: 26,
-      speedMin: 90,
-      speedMax: 340,
-      lifeMin: 0.25,
-      lifeMax: 0.6,
-      sizeMin: 2,
-      sizeMax: 5,
-      colors: [PALETTE.reward, PALETTE.ink],
-      glow: true,
-    })
-    juice.texts.spawn({
-      x: this.field.pivotX,
-      y: this.field.pivotY - BALANCE.core.radius * 2.6,
-      value: 'ЗАРЯД ВИТРАЧЕНО',
-      color: PALETTE.reward,
-      size: 16,
-      life: 0.9,
-      rise: 36,
-    })
-    audio.play('shieldSave')
-  }
-
-  onCoreHit(bullet: Bullet): void {
+  onContainerHit(bullet: Bullet): void {
     const { juice, audio } = this.context
     this.score.registerMiss()
     this.lastMultiplier = 1
@@ -507,7 +480,17 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       colors: [PALETTE.hostile, PALETTE.ink],
       glow: true,
     })
+    juice.texts.spawn({
+      x: this.field.pivotX,
+      y: this.field.pivotY - BALANCE.container.height * 0.9,
+      value: 'КОНТУР ПОШКОДЖЕНО',
+      color: PALETTE.hostile,
+      size: 15,
+      life: 1,
+      rise: 34,
+    })
     audio.play('coreHit')
+    audio.play('shieldSave', { volume: 0.4 })
   }
 
   render(renderer: IRenderer, _alpha: number): void {
@@ -523,10 +506,16 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     if (!this.context.input.hasInteracted) this.renderHint(renderer)
     this.bullets.render(renderer)
     this.pulses.render(renderer, this.field)
-    this.paddle.render(renderer, this.field)
-    this.core.render(renderer, this.field, {
-      segments: this.charge.segments,
+    this.paddle.render(
+      renderer,
+      this.field,
+      1 - this.container.hp / BALANCE.container.maxHp,
+    )
+    this.container.render(renderer, this.field, {
+      percent: this.charge.percent,
       fillRatio: this.charge.fillRatio,
+      modules: this.charge.modules,
+      multiplier: this.score.multiplier,
     })
     juice.renderEffects(renderer)
 
@@ -535,10 +524,6 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     for (const button of this.controls) button.render(renderer)
 
     this.hud.render(renderer, {
-      score: this.score.score,
-      combo: this.score.combo,
-      multiplier: this.score.multiplier,
-      comboRatio: this.score.comboRatio,
       label: this.params.daily ? `ДЕНЬ #${this.params.dayNumber}` : 'ТРЕНУВАННЯ',
       safe: viewport.safeArea,
     })

@@ -154,8 +154,8 @@ export class ResultScene extends Scene<GameContext> {
     }
 
     const stats: Array<[string, string]> = [
+      ['МОДУЛІ', `${summary?.modules ?? 0}`],
       ['РЕКОРД', String(summary?.best ?? 0)],
-      ['СПІЙМАНО', String(summary?.catches ?? 0)],
       ['СЕРІЯ', `${summary?.streak ?? 0} дн`],
     ]
     const statY = titleY + 140

@@ -27,3 +27,9 @@ desktop.ini
 
 # docs/ ignored globally in ~/.gitignore_global — needed in this repo
 !docs/
+
+# Node / build
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/

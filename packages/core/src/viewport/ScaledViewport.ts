@@ -41,6 +41,7 @@ export class ScaledViewport implements IViewport {
     this.safeArea = { x: 0, y: 0, width: options.designWidth, height: options.designHeight }
 
     window.addEventListener('resize', this.handleResize, { passive: true })
+    window.addEventListener('load', this.handleResize, { passive: true })
     window.addEventListener('orientationchange', this.handleResize, { passive: true })
     if (typeof ResizeObserver !== 'undefined') {
       this.observer = new ResizeObserver(this.handleResize)
@@ -55,8 +56,14 @@ export class ScaledViewport implements IViewport {
 
   refresh(): void {
     const rect = this.canvas.getBoundingClientRect()
-    const cssWidth = Math.max(1, Math.round(rect.width || this.canvas.clientWidth || 1))
-    const cssHeight = Math.max(1, Math.round(rect.height || this.canvas.clientHeight || 1))
+    const cssWidth = Math.max(
+      1,
+      Math.round(rect.width || this.canvas.clientWidth || window.innerWidth || 1),
+    )
+    const cssHeight = Math.max(
+      1,
+      Math.round(rect.height || this.canvas.clientHeight || window.innerHeight || 1),
+    )
     this.dpr = Math.min(this.maxDpr, window.devicePixelRatio || 1)
 
     const deviceWidth = Math.round(cssWidth * this.dpr)
@@ -108,6 +115,7 @@ export class ScaledViewport implements IViewport {
 
   dispose(): void {
     window.removeEventListener('resize', this.handleResize)
+    window.removeEventListener('load', this.handleResize)
     window.removeEventListener('orientationchange', this.handleResize)
     this.observer?.disconnect()
     this.observer = null

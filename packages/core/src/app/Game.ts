@@ -42,6 +42,7 @@ export interface GameOptions {
   readonly designWidth: number
   readonly designHeight: number
   readonly initialScene: string
+  readonly initialParams?: unknown
   createScenes(context: GameContext): IScene<GameContext>[]
   readonly viewportMode?: ViewportMode
   readonly backgroundColor?: string
@@ -136,7 +137,7 @@ export class Game implements IDisposable {
 
     const scenes = this.options.createScenes(this.context)
     this.context.scenes.register(...scenes)
-    this.context.scenes.change(this.options.initialScene)
+    this.context.scenes.change(this.options.initialScene, this.options.initialParams)
     this.context.loop.start()
   }
 

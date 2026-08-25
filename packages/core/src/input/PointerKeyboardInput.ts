@@ -101,6 +101,7 @@ export class PointerKeyboardInput implements IInput {
     if (this.activePointer !== null && event.pointerId !== this.activePointer) return
     this.x = this.viewport.toDesignX(event.clientX)
     this.y = this.viewport.toDesignY(event.clientY)
+    if (event.pointerType === 'mouse') this.markInteraction(this.sample(event.pointerId))
   }
 
   private readonly onPointerUp = (event: PointerEvent): void => {

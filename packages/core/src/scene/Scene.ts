@@ -23,6 +23,18 @@ export abstract class Scene<TContext> implements IScene<TContext> {
     /* override */
   }
 
+  resize(_width: number, _height: number): void {
+    /* override */
+  }
+
+  pause(): void {
+    /* override */
+  }
+
+  resume(): void {
+    /* override */
+  }
+
   abstract update(dt: number): void
 
   abstract render(renderer: IRenderer, alpha: number): void

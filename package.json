@@ -12,9 +12,14 @@
   },
   "scripts": {
     "typecheck": "tsc -b --pretty",
-    "budget": "node scripts/check-bundle.mjs"
+    "budget": "node scripts/check-bundle.mjs",
+    "dev": "npm run dev --workspace @sa/ricochet",
+    "build": "npm run build --workspace @sa/ricochet",
+    "sim": "npm run sim --workspace @sa/ricochet"
   },
   "devDependencies": {
+    "@types/node": "^20.19.43",
+    "esbuild": "^0.21.5",
     "typescript": "^5.6.3",
     "vite": "^5.4.10"
   }

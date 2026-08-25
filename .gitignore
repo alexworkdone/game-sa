@@ -33,3 +33,8 @@ node_modules/
 dist/
 *.tsbuildinfo
 .vite/
+dist-types/
+
+# .claude/ ignored globally — launch config is needed in this repo
+!.claude/
+!.claude/launch.json

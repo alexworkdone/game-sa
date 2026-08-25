@@ -38,3 +38,6 @@ dist-types/
 # .claude/ ignored globally — launch config is needed in this repo
 !.claude/
 !.claude/launch.json
+
+# Assembled static site
+site/

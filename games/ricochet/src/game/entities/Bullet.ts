@@ -12,6 +12,7 @@ export class Bullet {
   radius = BALANCE.bullet.radius
   life = 0
   spawnFade = 0
+  energy = 0
 
   launch(lane: number, x: number, y: number, vx: number, vy: number): void {
     this.active = true
@@ -25,6 +26,7 @@ export class Bullet {
     this.radius = BALANCE.bullet.radius
     this.life = 0
     this.spawnFade = 0
+    this.energy = 0
   }
 
   advance(dt: number): void {

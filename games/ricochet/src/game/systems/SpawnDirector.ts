@@ -155,13 +155,19 @@ export class SpawnDirector {
   private fire(spawn: PendingSpawn): void {
     const origin = this.field.lanePoint(spawn.lane, this.field.outerRadius)
     const angle = this.field.laneAngle(spawn.lane)
-    this.bullets.spawn(
+    const bullet = this.bullets.spawn(
       spawn.lane,
       origin.x,
       origin.y,
       -Math.cos(angle) * spawn.speed,
       -Math.sin(angle) * spawn.speed,
     )
+    if (bullet) {
+      bullet.energy = this.random.float(
+        BALANCE.plasma.minPerCharge,
+        BALANCE.plasma.maxPerCharge,
+      )
+    }
     this.listener.onSpawn(spawn.lane)
   }
 }

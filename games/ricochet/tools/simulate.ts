@@ -1,13 +1,14 @@
-import { SeededRandom } from '@sa/core'
+import { MemoryStorage, SeededRandom } from '@sa/core'
 import { BALANCE } from '../src/game/config/balance.js'
 import { Field } from '../src/game/entities/Field.js'
 import { Container } from '../src/game/entities/Container.js'
 import { Paddle } from '../src/game/entities/Paddle.js'
 import type { Bullet } from '../src/game/entities/Bullet.js'
 import { BulletPool } from '../src/game/systems/BulletPool.js'
-import { ChargeSystem } from '../src/game/systems/ChargeSystem.js'
+import { PlasmaCollector } from '../src/game/systems/PlasmaCollector.js'
+import { PartLedger } from '../src/game/systems/PartLedger.js'
 import { PulseSystem } from '../src/game/systems/PulseSystem.js'
-import { ScoreTracker } from '../src/game/systems/ScoreTracker.js'
+import { VeinNetwork } from '../src/game/systems/VeinNetwork.js'
 import { CombatSystem } from '../src/game/systems/CombatSystem.js'
 import type { CombatListener } from '../src/game/systems/CombatSystem.js'
 import { SpawnDirector } from '../src/game/systems/SpawnDirector.js'
@@ -18,11 +19,10 @@ const MAX_SECONDS = 900
 
 export interface SimResult {
   readonly seconds: number
-  readonly score: number
   readonly catches: number
   readonly misses: number
-  readonly modules: number
-  readonly bestCombo: number
+  readonly extracted: boolean
+  readonly energy: number
 }
 
 class BotRun implements CombatListener, SpawnListener {
@@ -30,9 +30,9 @@ class BotRun implements CombatListener, SpawnListener {
   private readonly container = new Container()
   private readonly paddle = new Paddle()
   private readonly bullets = new BulletPool()
-  private readonly charge = new ChargeSystem()
-  private readonly pulses = new PulseSystem()
-  private readonly score = new ScoreTracker()
+  private readonly collector = new PlasmaCollector()
+  private readonly veins = new VeinNetwork()
+  private readonly pulses = new PulseSystem(this.veins)
   private readonly combat: CombatSystem
   private readonly director: SpawnDirector
 
@@ -40,15 +40,21 @@ class BotRun implements CombatListener, SpawnListener {
   private readonly mistakeChance: number
   private decisionTimer = 0
   private elapsed = 0
+  private extracted = false
+  private readonly ledger: PartLedger
 
   catches = 0
   misses = 0
-  modules = 0
 
-  constructor(seed: string, skill: number) {
+  constructor(seed: string, skill: number, startPart: number) {
+    const storage = new MemoryStorage()
+    storage.set('partsBuilt.v2', startPart)
+    if (startPart > 0) storage.set('reservoir.v2', BALANCE.plasma.reservoirCapacity)
+    this.ledger = new PartLedger(storage)
     this.reaction = 0.12 + (1 - skill) * 0.4
     this.mistakeChance = (1 - skill) * 0.22
     this.field.resize(960, 540)
+    this.veins.rebuild(this.field)
     this.paddle.reset(this.field)
     this.combat = new CombatSystem({
       field: this.field,
@@ -90,35 +96,34 @@ class BotRun implements CombatListener, SpawnListener {
 
   run(): SimResult {
     this.director.start()
-    while (this.container.alive && this.elapsed < MAX_SECONDS) {
+    while (this.container.alive && !this.extracted && this.elapsed < MAX_SECONDS) {
       this.elapsed += STEP
       this.steer(STEP)
       this.paddle.update(STEP, this.field)
       this.container.update(STEP)
-      this.score.update(STEP)
-      this.pulses.update(STEP, () => this.charge.add())
+      this.pulses.update(STEP, (_lane, energy) => {
+        this.collector.add(energy)
+        if (this.collector.energy >= BALANCE.plasma.containerCapacity) this.extracted = true
+      })
       this.director.update(STEP)
       this.combat.update(STEP)
     }
     return {
       seconds: Math.round(this.elapsed * 10) / 10,
-      score: this.score.score,
       catches: this.catches,
       misses: this.misses,
-      modules: this.charge.modules,
-      bestCombo: this.score.bestCombo,
+      extracted: this.extracted,
+      energy: Math.round(this.collector.energy * 10) / 10,
     }
   }
 
-  onAbsorb(bullet: Bullet, distance: number): void {
+  onAbsorb(bullet: Bullet): void {
     this.catches += 1
-    this.score.registerCatch()
-    this.pulses.spawn(bullet.lane, distance)
+    this.pulses.spawn(bullet.lane, bullet.energy)
   }
 
   onContainerHit(): void {
     this.misses += 1
-    this.score.registerMiss()
   }
 
   onTelegraph(): void {
@@ -143,6 +148,7 @@ const median = (values: number[]): number => {
 }
 
 const runs = Number(process.argv[2] ?? 40)
+const startPart = Number(process.argv[3] ?? 0)
 const profiles = [
   { label: 'новачок ', skill: 0.4 },
   { label: 'середній', skill: 0.72 },
@@ -152,29 +158,30 @@ const profiles = [
 console.log(`RICOCHET — симуляція, ${runs} забігів на профіль`)
 console.log(
   `доріжок: ${BALANCE.field.laneCount}, телеграф: ${BALANCE.spawn.telegraph} c, ` +
-    `рампа: ${BALANCE.ramp.seconds} c\n`,
+    `рампа: ${BALANCE.ramp.seconds} c, ` +
+    `деталь #${startPart + 1} = ${Math.round(BALANCE.plasma.baseTarget * Math.pow(BALANCE.plasma.growth, startPart))} ГДж\n`,
 )
-console.log('профіль    сек(мед)  сек(сер)  очки(мед)  спіймано  модулів  промахів  комбо')
+console.log('профіль    сек(мед)  сек(сер)  ГДж(мед)  спіймано  промахів  вивіз')
 
 for (const { label, skill } of profiles) {
   const results: SimResult[] = []
-  for (let i = 0; i < runs; i++) results.push(new BotRun(`sim-${i}`, skill).run())
+  for (let i = 0; i < runs; i++) results.push(new BotRun(`sim-${i}`, skill, startPart).run())
 
   console.log(
     `${label}  ${median(results.map((r) => r.seconds))
       .toFixed(1)
       .padStart(8)}  ${average(results.map((r) => r.seconds))
       .toFixed(1)
-      .padStart(8)}  ${median(results.map((r) => r.score))
-      .toFixed(0)
-      .padStart(9)}  ${average(results.map((r) => r.catches))
+      .padStart(8)}  ${median(results.map((r) => r.energy))
       .toFixed(1)
-      .padStart(8)}  ${average(results.map((r) => r.modules))
-      .toFixed(2)
+      .padStart(8)}  ${average(results.map((r) => r.catches))
+      .toFixed(1)
       .padStart(8)}  ${average(results.map((r) => r.misses))
       .toFixed(2)
-      .padStart(8)}  ${average(results.map((r) => r.bestCombo))
-      .toFixed(1)
-      .padStart(5)}`,
+      .padStart(8)}  ${(
+      results.filter((r) => r.extracted).length / results.length
+    )
+      .toFixed(2)
+      .padStart(7)}`,
   )
 }

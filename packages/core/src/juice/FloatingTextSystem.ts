@@ -11,6 +11,7 @@ export interface FloatingTextOptions {
   readonly rise?: number
   readonly life?: number
   readonly weight?: string | number
+  readonly alpha?: number
 }
 
 interface FloatingText {
@@ -24,6 +25,7 @@ interface FloatingText {
   life: number
   maxLife: number
   weight: string | number
+  alpha: number
 }
 
 export class FloatingTextSystem implements IUpdatable {
@@ -42,6 +44,7 @@ export class FloatingTextSystem implements IUpdatable {
       life: 0,
       maxLife: 1,
       weight: 700 as string | number,
+      alpha: 1,
     }))
   }
 
@@ -58,6 +61,7 @@ export class FloatingTextSystem implements IUpdatable {
     item.maxLife = options.life ?? 0.8
     item.life = item.maxLife
     item.weight = options.weight ?? 700
+    item.alpha = options.alpha ?? 1
   }
 
   update(dt: number): void {
@@ -73,7 +77,7 @@ export class FloatingTextSystem implements IUpdatable {
       if (!item.active) continue
       const progress = 1 - item.life / item.maxLife
       const offset = Ease.outCubic(progress) * item.rise
-      const alpha = progress < 0.7 ? 1 : 1 - (progress - 0.7) / 0.3
+      const alpha = (progress < 0.7 ? 1 : 1 - (progress - 0.7) / 0.3) * item.alpha
       const scale = 1 + Ease.outBack(Math.min(1, progress * 4)) * 0.15
       renderer.text(item.value, item.x, item.y - offset, {
         fill: item.color,

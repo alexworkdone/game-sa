@@ -1,7 +1,7 @@
 import { BALANCE } from '../config/balance.js'
 import type { Bullet } from '../entities/Bullet.js'
 import type { Field } from '../entities/Field.js'
-import type { Paddle } from '../entities/Paddle.js'
+import { Paddle } from '../entities/Paddle.js'
 import type { Container } from '../entities/Container.js'
 import type { BulletPool } from './BulletPool.js'
 
@@ -37,28 +37,38 @@ export class CombatSystem {
     this.bullets.advance(dt)
 
     const orbit = this.field.paddleOrbit
-    const band = BALANCE.paddle.screenHeight / 2
+    const antennaHalf = Paddle.antennaLength / 2
+    const reachOut = antennaHalf
+    const reachIn = antennaHalf + BALANCE.paddle.catchGrace
 
     for (const bullet of this.bullets.items) {
       if (!bullet.active) continue
       const distance = this.field.distanceFromPivot(bullet.x, bullet.y)
-      const reach = band + bullet.radius
 
-      if (
-        bullet.lane === this.paddle.lane &&
-        distance <= orbit + reach &&
-        distance >= orbit - reach
-      ) {
-        bullet.kill()
-        this.paddle.registerImpact()
-        this.listener.onAbsorb(bullet, orbit)
-        continue
+      if (this.container.alive) {
+        if (
+          bullet.lane === this.paddle.lane &&
+          distance <= orbit + reachOut + bullet.radius &&
+          distance >= orbit - reachIn - bullet.radius
+        ) {
+          bullet.kill()
+          this.paddle.registerImpact()
+          this.listener.onAbsorb(bullet, orbit)
+          continue
+        }
+
+        if (distance <= this.container.impactRadius + bullet.radius) {
+          bullet.kill()
+          if (this.container.takeDamage()) this.listener.onContainerHit(bullet)
+          continue
+        }
       }
 
-      if (distance <= BALANCE.container.radius + bullet.radius) {
-        bullet.kill()
-        if (this.container.takeDamage()) this.listener.onContainerHit(bullet)
-      }
+      const outward =
+        (bullet.x - this.field.pivotX) * bullet.vx +
+          (bullet.y - this.field.pivotY) * bullet.vy >
+        0
+      if (outward && distance > this.field.outerRadius * 1.35) bullet.kill()
     }
   }
 }

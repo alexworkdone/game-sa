@@ -1,4 +1,4 @@
-name: Deploy prototypes
+name: Build prototypes
 
 on:
   push:
@@ -28,16 +28,8 @@ jobs:
       - run: npm run build
       - run: npm run budget
       - run: node scripts/assemble-site.mjs
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
+          name: site
           path: site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          retention-days: 7

@@ -1,4 +1,4 @@
-import { Button, CoreEvent, Ease, Scene, SeededRandom, UiLayer } from '@sa/core'
+import { Button, CoreEvent, Ease, Scene, SeededRandom, UiLayer, damp } from '@sa/core'
 import type { GameContext, IRandom, IRenderer } from '@sa/core'
 import { BALANCE } from '../config/balance.js'
 import { PALETTE } from '../config/palette.js'
@@ -8,26 +8,26 @@ import { Container } from '../entities/Container.js'
 import { Paddle } from '../entities/Paddle.js'
 import type { Bullet } from '../entities/Bullet.js'
 import { BulletPool } from '../systems/BulletPool.js'
-import { ChargeSystem } from '../systems/ChargeSystem.js'
+import { PlasmaCollector } from '../systems/PlasmaCollector.js'
 import { PulseSystem } from '../systems/PulseSystem.js'
-import { ScoreTracker } from '../systems/ScoreTracker.js'
+import { VeinNetwork } from '../systems/VeinNetwork.js'
 import { CombatSystem } from '../systems/CombatSystem.js'
 import type { CombatListener } from '../systems/CombatSystem.js'
 import { SpawnDirector } from '../systems/SpawnDirector.js'
 import type { SpawnListener } from '../systems/SpawnDirector.js'
-import type { RunRecords } from '../systems/RunRecords.js'
+import type { PartLedger, PartProgress } from '../systems/PartLedger.js'
+import type { RunOutcome, RunRecords } from '../systems/RunRecords.js'
 import { IconButton } from '../ui/IconButton.js'
+import { ExtractButton } from '../ui/ExtractButton.js'
 import { Hud } from './Hud.js'
 
 export interface PlayParams {
   readonly seed: string
-  readonly daily: boolean
-  readonly dayNumber: number
 }
 
-type PlayState = 'running' | 'paused' | 'dying'
+type PlayState = 'running' | 'paused' | 'leaving'
 
-const DEATH_DELAY = 1
+const EXIT_DELAY = 0.95
 const KEY_REPEAT_DELAY = 0.26
 const KEY_REPEAT_INTERVAL = 0.12
 const LANE_FADE_STEPS = 7
@@ -36,28 +36,33 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
   readonly name = 'play'
 
   private readonly records: RunRecords
+  private readonly ledger: PartLedger
   private readonly field = new Field()
   private readonly container = new Container()
   private readonly paddle = new Paddle()
   private readonly bullets = new BulletPool()
-  private readonly charge = new ChargeSystem()
-  private readonly pulses = new PulseSystem()
-  private readonly score = new ScoreTracker()
+  private readonly collector = new PlasmaCollector()
+  private readonly veins = new VeinNetwork()
+  private readonly pulses = new PulseSystem(this.veins)
   private readonly hud = new Hud()
   private readonly ui = new UiLayer()
-  private readonly menuButtons: Button[] = []
+  private readonly menuButtons: (Button | ExtractButton)[] = []
   private readonly controls: IconButton[] = []
+  private extractButton: ExtractButton | null = null
 
   private combat: CombatSystem | null = null
   private director: SpawnDirector | null = null
   private random: IRandom = new SeededRandom('boot')
 
-  private params: PlayParams = { seed: 'boot', daily: false, dayNumber: 1 }
+  private params: PlayParams = { seed: 'boot' }
   private state: PlayState = 'running'
+  private outcome: RunOutcome = 'destroyed'
   private elapsed = 0
-  private deathTimer = 0
+  private exitTimer = 0
   private gameplayStarted = false
-  private lastMultiplier = 1
+  private finished = false
+  private partsThisRun = 0
+  private displayEnergy = 0
   private hintPhase = 0
   private pointerMode = true
   private lastPointerX = Number.NaN
@@ -65,9 +70,14 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
   private repeatTimer = 0
   private heldDirection = 0
 
-  constructor(records: RunRecords) {
+  constructor(records: RunRecords, ledger: PartLedger) {
     super()
     this.records = records
+    this.ledger = ledger
+  }
+
+  private get progress(): PartProgress {
+    return this.ledger.progress
   }
 
   protected override onEnter(params?: unknown): void {
@@ -76,12 +86,12 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
 
     const { renderer, juice } = this.context
     this.field.resize(renderer.width, renderer.height)
+    this.veins.rebuild(this.field)
     this.container.reset()
     this.paddle.reset(this.field)
     this.bullets.clear()
-    this.charge.reset()
+    this.collector.reset()
     this.pulses.clear()
-    this.score.reset()
     juice.clear()
 
     this.combat = new CombatSystem({
@@ -100,10 +110,13 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     this.director.start()
 
     this.state = 'running'
+    this.outcome = 'destroyed'
     this.elapsed = 0
-    this.deathTimer = 0
+    this.exitTimer = 0
     this.gameplayStarted = false
-    this.lastMultiplier = 1
+    this.finished = false
+    this.partsThisRun = 0
+    this.displayEnergy = 0
     this.hintPhase = 0
     this.repeatTimer = 0
     this.heldDirection = 0
@@ -173,24 +186,21 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       this.leavePause()
     })
 
-    const restart = this.ui.add(
-      new Button({
+    const extract = this.ui.add(
+      new ExtractButton({
         x: centerX - width / 2,
         y: centerY + 66,
-        width,
-        height: 46,
-        label: 'НОВА ГРА',
-        theme: UI_THEME,
-        fontSize: 15,
-        variant: 'ghost',
+        width: Math.max(width, 250),
+        height: 48,
       }),
     )
-    restart.onActivate.on(() => {
+    extract.onActivate.on(() => {
       this.context.audio.play('uiTap')
-      this.restart()
+      this.extractToBase()
     })
+    this.extractButton = extract
 
-    this.menuButtons.push(resume, restart)
+    this.menuButtons.push(resume, extract)
     this.setMenuVisible(false)
   }
 
@@ -201,12 +211,19 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     }
   }
 
+  private extractToBase(): void {
+    this.setMenuVisible(false)
+    this.beginExit('extracted')
+  }
+
   private restart(): void {
+    this.finished = true
     this.context.scenes.change('play', this.params)
   }
 
   override resize(width: number, height: number): void {
     this.field.resize(width, height)
+    this.veins.rebuild(this.field)
     this.buildUi()
     if (this.state === 'paused') this.setMenuVisible(true)
   }
@@ -219,16 +236,18 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     const { input } = this.context
 
     if (input.wasKeyPressed('Escape') || input.wasKeyPressed('Space')) this.togglePause()
-    if (input.wasKeyPressed('KeyR') && this.state !== 'dying') {
+    if (input.wasKeyPressed('KeyR')) {
       this.restart()
       return
     }
+    if (this.extractButton) this.extractButton.energy = this.collector.energy
+
     if (this.state === 'paused') {
       this.ui.handleInput(input)
       this.ui.update(dt)
       return
     }
-    if (this.state === 'running') this.ui.handleInput(input)
+    this.ui.handleInput(input)
     this.ui.update(dt)
 
     if (!this.gameplayStarted && input.hasInteracted) this.beginGameplay()
@@ -237,24 +256,22 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     this.hintPhase += dt
     if (this.state === 'running') this.readSteering(dt)
     this.paddle.update(dt, this.field)
+    this.displayEnergy = damp(this.displayEnergy, this.collector.energy, 0.02, dt)
     this.container.update(dt)
-    this.score.update(dt)
-    this.pulses.update(dt, (lane) => this.onPulseArrived(lane))
+    this.pulses.update(dt, (lane, energy) => this.onPulseArrived(lane, energy))
 
     if (this.state === 'running') {
       this.director?.update(dt)
       this.combat?.update(dt)
-      if (!this.container.alive) this.beginDeath()
+      if (!this.container.alive) this.beginExit('destroyed')
       return
     }
 
-    this.combat?.update(dt)
-    this.deathTimer -= dt
-    if (this.deathTimer <= 0) this.finishRun()
-  }
+    if (this.state !== 'leaving') return
 
-  private pointerOverControls(x: number, y: number): boolean {
-    return this.controls.some((button) => button.hitTest(x, y))
+    this.combat?.update(dt)
+    this.exitTimer -= dt
+    if (this.exitTimer <= 0) this.finishRun()
   }
 
   private readSteering(dt: number): void {
@@ -298,13 +315,14 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     }
   }
 
+  private pointerOverControls(x: number, y: number): boolean {
+    return this.controls.some((button) => button.hitTest(x, y))
+  }
+
   private beginGameplay(): void {
     this.gameplayStarted = true
     this.context.portal.gameplayStart()
-    this.context.analytics.track(CoreEvent.GameplayStart, {
-      seed: this.params.seed,
-      daily: this.params.daily,
-    })
+    this.context.analytics.track(CoreEvent.GameplayStart, { seed: this.params.seed })
   }
 
   private togglePause(): void {
@@ -327,48 +345,84 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     })
   }
 
-  private beginDeath(): void {
+  private beginExit(outcome: RunOutcome): void {
+    if (this.state === 'leaving') return
     const { juice, audio, portal, analytics } = this.context
-    this.state = 'dying'
-    this.deathTimer = DEATH_DELAY
+    const wasPaused = this.state === 'paused'
+    this.state = 'leaving'
+    this.outcome = outcome
+    this.exitTimer = EXIT_DELAY
+    this.container.beginTeleport()
+
+    const destroyed = outcome === 'destroyed'
     juice.hitStop.freeze(BALANCE.juice.deathHitStop)
-    juice.shake.add(0.95)
+    juice.shake.add(destroyed ? 0.95 : 0.5)
     juice.particles.emit({
       x: this.field.pivotX,
       y: this.field.pivotY,
-      count: 44,
+      count: 34,
       speedMin: 90,
-      speedMax: 400,
-      lifeMin: 0.4,
-      lifeMax: 1,
+      speedMax: 380,
+      lifeMin: 0.25,
+      lifeMax: 0.6,
       sizeMin: 2,
-      sizeMax: 7,
-      colors: [PALETTE.hostile, PALETTE.ink],
+      sizeMax: 6,
+      colors: destroyed ? [PALETTE.hostile, PALETTE.ink] : [PALETTE.reward, PALETTE.ink],
       glow: true,
     })
-    audio.play('gameOver')
-    if (this.gameplayStarted) portal.gameplayStop()
-    analytics.track(CoreEvent.Fail, { catches: this.score.catches, score: this.score.score })
+    juice.particles.emit({
+      x: this.field.pivotX,
+      y: this.field.pivotY,
+      count: 30,
+      angle: -Math.PI / 2,
+      spread: 1.1,
+      speedMin: 160,
+      speedMax: 520,
+      lifeMin: 0.25,
+      lifeMax: 0.65,
+      sizeMin: 1.5,
+      sizeMax: 4,
+      colors: [PALETTE.friendly, PALETTE.ink],
+      shape: 'spark',
+      glow: true,
+    })
+    audio.play(destroyed ? 'gameOver' : 'chargeUp')
+
+    if (this.gameplayStarted && !wasPaused) portal.gameplayStop()
+    analytics.track(destroyed ? CoreEvent.Fail : CoreEvent.RunComplete, {
+      catches: this.collector.charges,
+      energy: Math.round(this.collector.energy * 10) / 10,
+    })
     analytics.track(CoreEvent.GameplayEnd, {
       duration_ms: Math.round(this.elapsed * 1000),
-      catches: this.score.catches,
-      score: this.score.score,
-      reason: 'fail',
+      catches: this.collector.charges,
+      energy: Math.round(this.collector.energy * 10) / 10,
+      reason: outcome,
     })
   }
 
   private finishRun(): void {
-    const summary = this.records.submit({
-      score: this.score.score,
-      catches: this.score.catches,
-      modules: this.charge.modules,
-      percent: this.charge.percent,
-      bestCombo: this.score.bestCombo,
+    if (this.finished) return
+    this.finished = true
+    const collected = Math.round(this.collector.energy * 10) / 10
+    const destroyed = this.outcome === 'destroyed'
+    const runEnergy = destroyed
+      ? 0
+      : Math.round(Math.max(0, collected - BALANCE.plasma.teleportCost) * 10) / 10
+    const run = this.records.submit({
+      energy: runEnergy,
+      catches: this.collector.charges,
+      partsThisRun: this.partsThisRun,
+      outcome: this.outcome,
       durationMs: Math.round(this.elapsed * 1000),
-      daily: this.params.daily,
-      dayNumber: this.params.dayNumber,
     })
-    this.context.scenes.change('result', summary)
+    const progress = this.ledger.commit(runEnergy)
+    this.context.scenes.change('result', {
+      run,
+      progress,
+      runEnergy,
+      lostEnergy: destroyed ? collected : 0,
+    })
   }
 
   onTelegraph(lane: number): void {
@@ -392,9 +446,8 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     })
   }
 
-  onAbsorb(bullet: Bullet, distance: number): void {
+  onAbsorb(bullet: Bullet, _distance: number): void {
     const { juice, audio } = this.context
-    const reward = this.score.registerCatch()
 
     juice.hitStop.freeze(BALANCE.juice.absorbHitStop)
     juice.shake.add(BALANCE.juice.absorbShake)
@@ -414,57 +467,46 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     juice.texts.spawn({
       x: bullet.x,
       y: bullet.y,
-      value: `+${reward.points}`,
-      color: reward.multiplier > 1 ? PALETTE.reward : PALETTE.ink,
-      size: 15 + Math.min(10, reward.multiplier * 1.5),
-      life: 0.55,
+      value: `+${bullet.energy.toFixed(1)}`,
+      color: PALETTE.reward,
+      size: 18,
+      life: 0.5,
+      rise: 30,
+      weight: 300,
+      alpha: 0.95,
     })
-    audio.play('absorb', { pitch: 1 + Math.min(0.7, this.score.combo * 0.03) })
-    this.pulses.spawn(bullet.lane, distance)
-
-    if (reward.multiplier > this.lastMultiplier) {
-      this.lastMultiplier = reward.multiplier
-      audio.play('comboUp')
-      juice.shake.add(0.12)
-    }
+    audio.play('absorb', { pitch: 0.9 + bullet.energy * 0.5 })
+    this.pulses.spawn(bullet.lane, bullet.energy)
   }
 
-  private onPulseArrived(_lane: number): void {
+  private onPulseArrived(_lane: number, energy: number): void {
     const { juice, audio } = this.context
-    const completed = this.charge.add()
-    if (!completed) return
+    this.collector.add(energy)
+    if (this.state !== 'running') return
+    if (this.collector.energy < BALANCE.plasma.containerCapacity) return
 
+    this.partsThisRun = 1
     this.container.flashGeneration()
     audio.play('chargeUp')
     juice.shake.add(BALANCE.juice.chargeGainShake)
     juice.particles.emit({
       x: this.field.pivotX,
       y: this.field.pivotY,
-      count: 22,
+      count: 26,
       speedMin: 80,
-      speedMax: 260,
+      speedMax: 300,
       lifeMin: 0.3,
-      lifeMax: 0.7,
+      lifeMax: 0.8,
       sizeMin: 2,
       sizeMax: 5,
       colors: [PALETTE.reward, PALETTE.friendly],
       glow: true,
     })
-    juice.texts.spawn({
-      x: this.field.pivotX,
-      y: this.field.pivotY - BALANCE.container.height * 2.6,
-      value: 'МОДУЛЬ ЗІБРАНО',
-      color: PALETTE.reward,
-      size: 20,
-      life: 0.9,
-      rise: 40,
-    })
+    this.beginExit('extracted')
   }
 
   onContainerHit(bullet: Bullet): void {
     const { juice, audio } = this.context
-    this.score.registerMiss()
-    this.lastMultiplier = 1
     juice.hitStop.freeze(0.11)
     juice.shake.add(BALANCE.juice.coreHitShake)
     juice.particles.emit({
@@ -480,43 +522,32 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       colors: [PALETTE.hostile, PALETTE.ink],
       glow: true,
     })
-    juice.texts.spawn({
-      x: this.field.pivotX,
-      y: this.field.pivotY - BALANCE.container.height * 0.9,
-      value: 'КОНТУР ПОШКОДЖЕНО',
-      color: PALETTE.hostile,
-      size: 15,
-      life: 1,
-      rise: 34,
-    })
     audio.play('coreHit')
-    audio.play('shieldSave', { volume: 0.4 })
   }
 
   render(renderer: IRenderer, _alpha: number): void {
     const { juice, viewport } = this.context
+    const progress = this.progress
 
     renderer.push()
     renderer.translate(this.field.pivotX, this.field.pivotY)
     juice.shake.apply(renderer)
     renderer.translate(-this.field.pivotX, -this.field.pivotY)
 
-    this.renderLanes(renderer)
-    this.renderTelegraphs(renderer)
-    if (!this.context.input.hasInteracted) this.renderHint(renderer)
+    const rigIntact = !this.container.vanished
+    if (rigIntact) {
+      this.renderLanes(renderer)
+      if (!this.context.input.hasInteracted) this.renderHint(renderer)
+      this.renderTelegraphs(renderer)
+    }
     this.bullets.render(renderer)
-    this.pulses.render(renderer, this.field)
-    this.paddle.render(
-      renderer,
-      this.field,
-      1 - this.container.hp / BALANCE.container.maxHp,
-    )
+    if (rigIntact) this.paddle.render(renderer, this.field)
     this.container.render(renderer, this.field, {
-      percent: this.charge.percent,
-      fillRatio: this.charge.fillRatio,
-      modules: this.charge.modules,
-      multiplier: this.score.multiplier,
+      energy: this.displayEnergy,
+      capacity: BALANCE.plasma.containerCapacity,
     })
+    if (rigIntact) this.veins.render(renderer, this.field)
+    this.pulses.render(renderer)
     juice.renderEffects(renderer)
 
     renderer.pop()
@@ -524,7 +555,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     for (const button of this.controls) button.render(renderer)
 
     this.hud.render(renderer, {
-      label: this.params.daily ? `ДЕНЬ #${this.params.dayNumber}` : 'ТРЕНУВАННЯ',
+      label: `Деталь #${progress.partIndex + 1} (${progress.currentTarget} ГДж)`,
       safe: viewport.safeArea,
     })
 
@@ -541,15 +572,10 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       const active = lane === this.paddle.lane
       const angle = this.field.laneAngle(lane)
 
-      renderer.arc(
-        this.field.pivotX,
-        this.field.pivotY,
-        orbit,
-        angle - half,
-        angle + half,
-        3,
-        { stroke: active ? PALETTE.friendly : PALETTE.grid, alpha: active ? 0.4 : 0.9 },
-      )
+      renderer.arc(this.field.pivotX, this.field.pivotY, orbit, angle - half, angle + half, 3, {
+        stroke: active ? PALETTE.friendly : PALETTE.grid,
+        alpha: active ? 0.4 : 0.9,
+      })
 
       for (let step = 0; step < LANE_FADE_STEPS; step++) {
         const from = inner + ((outer - inner) * step) / LANE_FADE_STEPS
@@ -621,7 +647,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     })
     for (const button of this.menuButtons) button.render(renderer)
     renderer.text(
-      'ПРОБІЛ / ESC — пауза · R — нова гра · ← → — рух',
+      'ПРОБІЛ / ESC — пауза · R — новий виліт · ← → — рух',
       safe.x + safe.width / 2,
       safe.y + safe.height / 2 + 138,
       {

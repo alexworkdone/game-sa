@@ -2,8 +2,8 @@ import type { DailySeed, IStorage } from '@sa/core'
 
 export interface RunResult {
   readonly score: number
-  readonly wave: number
-  readonly bestChain: number
+  readonly deflects: number
+  readonly bestCombo: number
   readonly durationMs: number
   readonly daily: boolean
   readonly dayNumber: number
@@ -47,7 +47,8 @@ export class RunRecords {
 
   submit(result: RunResult, date: Date = new Date()): RunSummary {
     const today = this.dailySeed.isoDate(date)
-    const best = Math.max(this.best, result.score)
+    const previousBest = this.best
+    const best = Math.max(previousBest, result.score)
     this.storage.set(KEY_BEST, best)
 
     let dailyBest = this.dailyBest(date)
@@ -71,7 +72,7 @@ export class RunRecords {
       best,
       dailyBest,
       streak,
-      isPersonalBest: result.score >= best && result.score > 0,
+      isPersonalBest: result.score > previousBest && result.score > 0,
     }
   }
 }

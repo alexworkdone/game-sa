@@ -20,10 +20,10 @@ export class BulletPool {
     return count
   }
 
-  spawn(x: number, y: number, vx: number, vy: number): Bullet | null {
+  spawn(lane: number, x: number, y: number, vx: number, vy: number): Bullet | null {
     for (const bullet of this.pool) {
       if (bullet.active) continue
-      bullet.launch(x, y, vx, vy)
+      bullet.launch(lane, x, y, vx, vy)
       return bullet
     }
     return null
@@ -42,22 +42,20 @@ export class BulletPool {
   render(renderer: IRenderer): void {
     for (const bullet of this.pool) {
       if (!bullet.active) continue
-      const charged = bullet.faction === 'charged'
-      const color = charged ? PALETTE.friendly : PALETTE.hostile
-      const radius = bullet.radius * (charged ? 1.15 : 1) * bullet.spawnFade
+      const deflected = bullet.faction === 'deflected'
+      const color = deflected ? PALETTE.friendly : PALETTE.hostile
+      const radius = bullet.radius * bullet.spawnFade
 
-      renderer.line(bullet.prevX, bullet.prevY, bullet.x, bullet.y, radius * 1.4, {
+      renderer.line(bullet.prevX, bullet.prevY, bullet.x, bullet.y, radius * 1.5, {
         stroke: color,
-        alpha: 0.35,
+        alpha: 0.32,
       })
       renderer.circle(bullet.x, bullet.y, radius, {
         fill: color,
         glow: color,
-        glowSize: charged ? 18 : 10,
+        glowSize: deflected ? 20 : 12,
       })
-      if (charged) {
-        renderer.circle(bullet.x, bullet.y, radius * 0.42, { fill: PALETTE.ink, alpha: 0.9 })
-      }
+      renderer.circle(bullet.x, bullet.y, radius * 0.4, { fill: PALETTE.ink, alpha: 0.9 })
     }
   }
 }

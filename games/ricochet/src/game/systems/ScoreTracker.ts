@@ -1,7 +1,7 @@
 import { clamp } from '@sa/core'
 import { BALANCE } from '../config/balance.js'
 
-export interface KillReward {
+export interface DeflectReward {
   readonly points: number
   readonly multiplier: number
 }
@@ -9,37 +9,37 @@ export interface KillReward {
 export class ScoreTracker {
   score = 0
   combo = 0
-  bestChain = 0
+  bestCombo = 0
+  deflects = 0
 
   private comboTimer = 0
 
-  get comboActive(): boolean {
-    return this.comboTimer > 0
+  get multiplier(): number {
+    return clamp(
+      1 + Math.floor(this.combo / 3) * BALANCE.score.comboStep,
+      1,
+      BALANCE.score.maxMultiplier,
+    )
   }
 
   get comboRatio(): number {
     return clamp(this.comboTimer / BALANCE.score.comboWindow, 0, 1)
   }
 
-  registerKill(chainIndex: number): KillReward {
+  registerDeflect(): DeflectReward {
     this.combo += 1
+    this.deflects += 1
+    this.bestCombo = Math.max(this.bestCombo, this.combo)
     this.comboTimer = BALANCE.score.comboWindow
-    this.bestChain = Math.max(this.bestChain, chainIndex + 1)
-
-    const multiplier = clamp(
-      1 + chainIndex * BALANCE.score.chainStep + Math.floor(this.combo / 3),
-      1,
-      BALANCE.score.maxChainMultiplier,
-    )
-    const points = BALANCE.score.turretKill * multiplier
+    const multiplier = this.multiplier
+    const points = BALANCE.score.deflect * multiplier
     this.score += points
     return { points, multiplier }
   }
 
-  registerWaveClear(waveIndex: number): number {
-    const points = BALANCE.score.waveClearBonus + waveIndex * 50
-    this.score += points
-    return points
+  registerMiss(): void {
+    this.combo = 0
+    this.comboTimer = 0
   }
 
   update(dt: number): void {
@@ -51,7 +51,8 @@ export class ScoreTracker {
   reset(): void {
     this.score = 0
     this.combo = 0
-    this.bestChain = 0
+    this.bestCombo = 0
+    this.deflects = 0
     this.comboTimer = 0
   }
 }

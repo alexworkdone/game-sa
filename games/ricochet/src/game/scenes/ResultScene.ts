@@ -1,17 +1,9 @@
-import { Button, Ease, Scene, UiLayer, defaultTheme } from '@sa/core'
-import type { DailySeed, GameContext, IRenderer, UiTheme } from '@sa/core'
+import { Button, Ease, Scene, UiLayer } from '@sa/core'
+import type { DailySeed, GameContext, IRenderer } from '@sa/core'
 import { PALETTE } from '../config/palette.js'
+import { UI_THEME } from '../config/theme.js'
 import type { RunSummary } from '../systems/RunRecords.js'
 import type { PlayParams } from './PlayScene.js'
-
-const THEME: UiTheme = {
-  ...defaultTheme,
-  text: PALETTE.ink,
-  textMuted: PALETTE.inkMuted,
-  surface: PALETTE.surface,
-  surfaceActive: PALETTE.grid,
-  accent: PALETTE.friendly,
-}
 
 export class ResultScene extends Scene<GameContext> {
   readonly name = 'result'
@@ -59,7 +51,7 @@ export class ResultScene extends Scene<GameContext> {
         width,
         height: 56,
         label: 'ЩЕ РАЗ',
-        theme: THEME,
+        theme: UI_THEME,
         fontSize: 20,
       }),
     )
@@ -71,8 +63,8 @@ export class ResultScene extends Scene<GameContext> {
         y: baseY + 68,
         width,
         height: 46,
-        label: `ВЕЖА ДНЯ #${this.dailySeed.dayNumber()}`,
-        theme: THEME,
+        label: `ДЕНЬ #${this.dailySeed.dayNumber()}`,
+        theme: UI_THEME,
         fontSize: 15,
         variant: 'ghost',
       }),
@@ -86,7 +78,7 @@ export class ResultScene extends Scene<GameContext> {
         width: 48,
         height: 48,
         label: this.context.audio.muted ? '🔇' : '🔊',
-        theme: THEME,
+        theme: UI_THEME,
         fontSize: 20,
         variant: 'ghost',
       }),
@@ -129,7 +121,7 @@ export class ResultScene extends Scene<GameContext> {
     })
 
     const titleY = safe.y + safe.height * 0.2 + rise
-    renderer.text(summary?.daily ? 'ВЕЖА ДНЯ' : 'ТРЕНУВАННЯ', centerX, titleY, {
+    renderer.text(summary?.daily ? `ДЕНЬ #${summary.dayNumber}` : 'ТРЕНУВАННЯ', centerX, titleY, {
       fill: PALETTE.inkMuted,
       size: 15,
       weight: 700,
@@ -163,7 +155,7 @@ export class ResultScene extends Scene<GameContext> {
 
     const stats: Array<[string, string]> = [
       ['РЕКОРД', String(summary?.best ?? 0)],
-      ['ХВИЛЯ', String((summary?.wave ?? 0) + 1)],
+      ['ВІДБИТО', String(summary?.deflects ?? 0)],
       ['СЕРІЯ', `${summary?.streak ?? 0} дн`],
     ]
     const statY = titleY + 140

@@ -1,7 +1,13 @@
 import type { IRenderer } from '@sa/core'
+import { TAU } from '@sa/core'
 import { BALANCE } from '../config/balance.js'
 import { PALETTE } from '../config/palette.js'
 import type { Field } from './Field.js'
+
+export interface ChargeView {
+  readonly segments: number
+  readonly fillRatio: number
+}
 
 export class PlayerCore {
   hp: number = BALANCE.core.maxHp
@@ -39,7 +45,7 @@ export class PlayerCore {
     this.pulse += dt * BALANCE.core.pulseSpeed
   }
 
-  render(renderer: IRenderer, field: Field): void {
+  render(renderer: IRenderer, field: Field, charge: ChargeView): void {
     const { pivotX, pivotY } = field
     const breathing = 1 + Math.sin(this.pulse * Math.PI * 2) * 0.04
     const radius = BALANCE.core.radius * breathing
@@ -57,6 +63,8 @@ export class PlayerCore {
     })
     renderer.circle(pivotX, pivotY, radius * 0.42, { fill: PALETTE.background, alpha: 0.85 })
 
+    this.renderCharge(renderer, field, charge, radius)
+
     const gap = 15
     for (let i = 0; i < BALANCE.core.maxHp; i++) {
       const x = pivotX + (i - (BALANCE.core.maxHp - 1) / 2) * gap
@@ -64,5 +72,46 @@ export class PlayerCore {
         fill: i < this.hp ? PALETTE.friendly : PALETTE.grid,
       })
     }
+  }
+
+  private renderCharge(
+    renderer: IRenderer,
+    field: Field,
+    charge: ChargeView,
+    coreRadius: number,
+  ): void {
+    const total = BALANCE.charge.maxSegments
+    const ringRadius = coreRadius * 1.7
+    const gap = 0.16
+    const span = (Math.PI - gap * (total - 1)) / total
+
+    for (let i = 0; i < total; i++) {
+      const start = -Math.PI + i * (span + gap)
+      const filled = i < charge.segments
+      const partial = i === charge.segments ? charge.fillRatio : 0
+
+      renderer.arc(field.pivotX, field.pivotY, ringRadius, start, start + span, 4, {
+        stroke: PALETTE.grid,
+        alpha: 0.85,
+      })
+      if (filled) {
+        renderer.arc(field.pivotX, field.pivotY, ringRadius, start, start + span, 5, {
+          stroke: PALETTE.reward,
+          glow: PALETTE.reward,
+          glowSize: 12,
+        })
+      } else if (partial > 0) {
+        renderer.arc(
+          field.pivotX,
+          field.pivotY,
+          ringRadius,
+          start,
+          start + span * partial,
+          5,
+          { stroke: PALETTE.reward, alpha: 0.85 },
+        )
+      }
+    }
+    void TAU
   }
 }

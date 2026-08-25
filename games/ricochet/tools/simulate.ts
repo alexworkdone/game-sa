@@ -5,6 +5,8 @@ import { PlayerCore } from '../src/game/entities/PlayerCore.js'
 import { Paddle } from '../src/game/entities/Paddle.js'
 import type { Bullet } from '../src/game/entities/Bullet.js'
 import { BulletPool } from '../src/game/systems/BulletPool.js'
+import { ChargeSystem } from '../src/game/systems/ChargeSystem.js'
+import { PulseSystem } from '../src/game/systems/PulseSystem.js'
 import { ScoreTracker } from '../src/game/systems/ScoreTracker.js'
 import { CombatSystem } from '../src/game/systems/CombatSystem.js'
 import type { CombatListener } from '../src/game/systems/CombatSystem.js'
@@ -17,8 +19,9 @@ const MAX_SECONDS = 900
 export interface SimResult {
   readonly seconds: number
   readonly score: number
-  readonly deflects: number
+  readonly catches: number
   readonly misses: number
+  readonly saves: number
   readonly bestCombo: number
 }
 
@@ -27,6 +30,8 @@ class BotRun implements CombatListener, SpawnListener {
   private readonly core = new PlayerCore()
   private readonly paddle = new Paddle()
   private readonly bullets = new BulletPool()
+  private readonly charge = new ChargeSystem()
+  private readonly pulses = new PulseSystem()
   private readonly score = new ScoreTracker()
   private readonly combat: CombatSystem
   private readonly director: SpawnDirector
@@ -36,8 +41,9 @@ class BotRun implements CombatListener, SpawnListener {
   private decisionTimer = 0
   private elapsed = 0
 
-  deflects = 0
+  catches = 0
   misses = 0
+  saves = 0
 
   constructor(seed: string, skill: number) {
     this.reaction = 0.12 + (1 - skill) * 0.4
@@ -49,6 +55,7 @@ class BotRun implements CombatListener, SpawnListener {
       core: this.core,
       paddle: this.paddle,
       bullets: this.bullets,
+      charge: this.charge,
       listener: this,
     })
     this.director = new SpawnDirector({
@@ -67,7 +74,7 @@ class BotRun implements CombatListener, SpawnListener {
     let target: Bullet | null = null
     let bestDistance = Number.POSITIVE_INFINITY
     for (const bullet of this.bullets.items) {
-      if (!bullet.active || bullet.faction !== 'hostile') continue
+      if (!bullet.active) continue
       const distance = this.field.distanceFromPivot(bullet.x, bullet.y)
       if (distance >= bestDistance) continue
       bestDistance = distance
@@ -90,30 +97,34 @@ class BotRun implements CombatListener, SpawnListener {
       this.paddle.update(STEP, this.field)
       this.core.update(STEP)
       this.score.update(STEP)
+      this.pulses.update(STEP, () => this.charge.add())
       this.director.update(STEP)
       this.combat.update(STEP)
     }
     return {
       seconds: Math.round(this.elapsed * 10) / 10,
       score: this.score.score,
-      deflects: this.deflects,
+      catches: this.catches,
       misses: this.misses,
+      saves: this.saves,
       bestCombo: this.score.bestCombo,
     }
   }
 
-  onDeflect(): void {
-    this.deflects += 1
-    this.score.registerDeflect()
+  onAbsorb(bullet: Bullet, distance: number): void {
+    this.catches += 1
+    this.score.registerCatch()
+    this.pulses.spawn(bullet.lane, distance)
+  }
+
+  onShieldSave(): void {
+    this.saves += 1
+    this.score.registerMiss()
   }
 
   onCoreHit(): void {
     this.misses += 1
     this.score.registerMiss()
-  }
-
-  onEscape(): void {
-    /* ignored */
   }
 
   onTelegraph(): void {
@@ -149,7 +160,7 @@ console.log(
   `доріжок: ${BALANCE.field.laneCount}, телеграф: ${BALANCE.spawn.telegraph} c, ` +
     `рампа: ${BALANCE.ramp.seconds} c\n`,
 )
-console.log('профіль    сек(мед)  сек(сер)  очки(мед)  відбито  промахів  комбо')
+console.log('профіль    сек(мед)  сек(сер)  очки(мед)  спіймано  заряд-щит  промахів  комбо')
 
 for (const { label, skill } of profiles) {
   const results: SimResult[] = []
@@ -162,9 +173,11 @@ for (const { label, skill } of profiles) {
       .toFixed(1)
       .padStart(8)}  ${median(results.map((r) => r.score))
       .toFixed(0)
-      .padStart(9)}  ${average(results.map((r) => r.deflects))
+      .padStart(9)}  ${average(results.map((r) => r.catches))
       .toFixed(1)
-      .padStart(7)}  ${average(results.map((r) => r.misses))
+      .padStart(8)}  ${average(results.map((r) => r.saves))
+      .toFixed(2)
+      .padStart(9)}  ${average(results.map((r) => r.misses))
       .toFixed(2)
       .padStart(8)}  ${average(results.map((r) => r.bestCombo))
       .toFixed(1)

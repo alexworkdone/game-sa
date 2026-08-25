@@ -1,7 +1,7 @@
 import { clamp } from '@sa/core'
 import { BALANCE } from '../config/balance.js'
 
-export interface DeflectReward {
+export interface CatchReward {
   readonly points: number
   readonly multiplier: number
 }
@@ -10,7 +10,7 @@ export class ScoreTracker {
   score = 0
   combo = 0
   bestCombo = 0
-  deflects = 0
+  catches = 0
 
   private comboTimer = 0
 
@@ -26,13 +26,13 @@ export class ScoreTracker {
     return clamp(this.comboTimer / BALANCE.score.comboWindow, 0, 1)
   }
 
-  registerDeflect(): DeflectReward {
+  registerCatch(): CatchReward {
     this.combo += 1
-    this.deflects += 1
+    this.catches += 1
     this.bestCombo = Math.max(this.bestCombo, this.combo)
     this.comboTimer = BALANCE.score.comboWindow
     const multiplier = this.multiplier
-    const points = BALANCE.score.deflect * multiplier
+    const points = BALANCE.score.perCatch * multiplier
     this.score += points
     return { points, multiplier }
   }
@@ -52,7 +52,7 @@ export class ScoreTracker {
     this.score = 0
     this.combo = 0
     this.bestCombo = 0
-    this.deflects = 0
+    this.catches = 0
     this.comboTimer = 0
   }
 }

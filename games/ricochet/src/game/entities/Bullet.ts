@@ -1,7 +1,5 @@
 import { BALANCE } from '../config/balance.js'
 
-export type BulletFaction = 'hostile' | 'deflected'
-
 export class Bullet {
   active = false
   lane = 0
@@ -12,7 +10,6 @@ export class Bullet {
   vx = 0
   vy = 0
   radius = BALANCE.bullet.radius
-  faction: BulletFaction = 'hostile'
   life = 0
   spawnFade = 0
 
@@ -26,16 +23,8 @@ export class Bullet {
     this.vx = vx
     this.vy = vy
     this.radius = BALANCE.bullet.radius
-    this.faction = 'hostile'
     this.life = 0
     this.spawnFade = 0
-  }
-
-  deflect(): void {
-    this.faction = 'deflected'
-    this.vx *= -BALANCE.bullet.deflectedSpeedMultiplier
-    this.vy *= -BALANCE.bullet.deflectedSpeedMultiplier
-    this.life = 0
   }
 
   advance(dt: number): void {

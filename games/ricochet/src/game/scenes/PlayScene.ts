@@ -2,18 +2,20 @@ import { Button, CoreEvent, Ease, Scene, SeededRandom, UiLayer } from '@sa/core'
 import type { GameContext, IRandom, IRenderer } from '@sa/core'
 import { BALANCE } from '../config/balance.js'
 import { PALETTE } from '../config/palette.js'
+import { UI_THEME } from '../config/theme.js'
 import { Field } from '../entities/Field.js'
 import { PlayerCore } from '../entities/PlayerCore.js'
 import { Paddle } from '../entities/Paddle.js'
 import type { Bullet } from '../entities/Bullet.js'
 import { BulletPool } from '../systems/BulletPool.js'
+import { ChargeSystem } from '../systems/ChargeSystem.js'
+import { PulseSystem } from '../systems/PulseSystem.js'
 import { ScoreTracker } from '../systems/ScoreTracker.js'
 import { CombatSystem } from '../systems/CombatSystem.js'
 import type { CombatListener } from '../systems/CombatSystem.js'
 import { SpawnDirector } from '../systems/SpawnDirector.js'
 import type { SpawnListener } from '../systems/SpawnDirector.js'
 import type { RunRecords } from '../systems/RunRecords.js'
-import { UI_THEME } from '../config/theme.js'
 import { Hud } from './Hud.js'
 
 export interface PlayParams {
@@ -27,6 +29,7 @@ type PlayState = 'running' | 'paused' | 'dying'
 const DEATH_DELAY = 1
 const KEY_REPEAT_DELAY = 0.26
 const KEY_REPEAT_INTERVAL = 0.12
+const LANE_FADE_STEPS = 7
 
 export class PlayScene extends Scene<GameContext> implements CombatListener, SpawnListener {
   readonly name = 'play'
@@ -36,6 +39,8 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
   private readonly core = new PlayerCore()
   private readonly paddle = new Paddle()
   private readonly bullets = new BulletPool()
+  private readonly charge = new ChargeSystem()
+  private readonly pulses = new PulseSystem()
   private readonly score = new ScoreTracker()
   private readonly hud = new Hud()
   private readonly ui = new UiLayer()
@@ -72,6 +77,8 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     this.core.reset()
     this.paddle.reset(this.field)
     this.bullets.clear()
+    this.charge.reset()
+    this.pulses.clear()
     this.score.reset()
     juice.clear()
 
@@ -80,6 +87,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       core: this.core,
       paddle: this.paddle,
       bullets: this.bullets,
+      charge: this.charge,
       listener: this,
     })
     this.director = new SpawnDirector({
@@ -103,6 +111,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
 
   protected override onExit(): void {
     this.ui.clear()
+    this.menuButtons.length = 0
   }
 
   private buildPauseMenu(): void {
@@ -194,6 +203,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     this.paddle.update(dt, this.field)
     this.core.update(dt)
     this.score.update(dt)
+    this.pulses.update(dt, (lane) => this.onPulseArrived(lane))
 
     if (this.state === 'running') {
       this.director?.update(dt)
@@ -238,8 +248,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     }
     this.heldDirection = 0
 
-    const moved = input.x !== this.lastPointerX || input.y !== this.lastPointerY
-    if (moved) {
+    if (input.x !== this.lastPointerX || input.y !== this.lastPointerY) {
       this.lastPointerX = input.x
       this.lastPointerY = input.y
       this.pointerMode = true
@@ -299,13 +308,10 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     })
     audio.play('gameOver')
     if (this.gameplayStarted) portal.gameplayStop()
-    analytics.track(CoreEvent.Fail, {
-      deflects: this.score.deflects,
-      score: this.score.score,
-    })
+    analytics.track(CoreEvent.Fail, { catches: this.score.catches, score: this.score.score })
     analytics.track(CoreEvent.GameplayEnd, {
       duration_ms: Math.round(this.elapsed * 1000),
-      deflects: this.score.deflects,
+      catches: this.score.catches,
       score: this.score.score,
       reason: 'fail',
     })
@@ -314,7 +320,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
   private finishRun(): void {
     const summary = this.records.submit({
       score: this.score.score,
-      deflects: this.score.deflects,
+      catches: this.score.catches,
       bestCombo: this.score.bestCombo,
       durationMs: Math.round(this.elapsed * 1000),
       daily: this.params.daily,
@@ -344,24 +350,22 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     })
   }
 
-  onDeflect(bullet: Bullet): void {
+  onAbsorb(bullet: Bullet, distance: number): void {
     const { juice, audio } = this.context
-    const reward = this.score.registerDeflect()
+    const reward = this.score.registerCatch()
 
-    juice.hitStop.freeze(BALANCE.juice.deflectHitStop)
-    juice.shake.add(BALANCE.juice.deflectShake)
+    juice.hitStop.freeze(BALANCE.juice.absorbHitStop)
+    juice.shake.add(BALANCE.juice.absorbShake)
     juice.particles.emit({
       x: bullet.x,
       y: bullet.y,
-      count: 12,
-      angle: Math.atan2(bullet.vy, bullet.vx),
-      spread: 1.7,
-      speedMin: 100,
-      speedMax: 320,
-      lifeMin: 0.15,
-      lifeMax: 0.4,
+      count: 10,
+      speedMin: 60,
+      speedMax: 240,
+      lifeMin: 0.12,
+      lifeMax: 0.32,
       sizeMin: 1.5,
-      sizeMax: 4,
+      sizeMax: 3.5,
       colors: [PALETTE.friendly, PALETTE.ink],
       shape: 'spark',
     })
@@ -370,10 +374,11 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       y: bullet.y,
       value: `+${reward.points}`,
       color: reward.multiplier > 1 ? PALETTE.reward : PALETTE.ink,
-      size: 16 + Math.min(10, reward.multiplier * 1.5),
-      life: 0.6,
+      size: 15 + Math.min(10, reward.multiplier * 1.5),
+      life: 0.55,
     })
-    audio.play('deflect', { pitch: 1 + Math.min(0.7, this.score.combo * 0.03) })
+    audio.play('absorb', { pitch: 1 + Math.min(0.7, this.score.combo * 0.03) })
+    this.pulses.spawn(bullet.lane, distance)
 
     if (reward.multiplier > this.lastMultiplier) {
       this.lastMultiplier = reward.multiplier
@@ -382,9 +387,64 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     }
   }
 
-  onEscape(bullet: Bullet): void {
-    this.context.audio.play('escape', { volume: 0.5 })
-    void bullet
+  private onPulseArrived(_lane: number): void {
+    const { juice, audio } = this.context
+    const completed = this.charge.add()
+    if (!completed) return
+
+    audio.play('chargeUp')
+    juice.shake.add(BALANCE.juice.chargeGainShake)
+    juice.particles.emit({
+      x: this.field.pivotX,
+      y: this.field.pivotY,
+      count: 22,
+      speedMin: 80,
+      speedMax: 260,
+      lifeMin: 0.3,
+      lifeMax: 0.7,
+      sizeMin: 2,
+      sizeMax: 5,
+      colors: [PALETTE.reward, PALETTE.friendly],
+      glow: true,
+    })
+    juice.texts.spawn({
+      x: this.field.pivotX,
+      y: this.field.pivotY - BALANCE.core.radius * 2.6,
+      value: 'ЗАРЯД',
+      color: PALETTE.reward,
+      size: 20,
+      life: 0.9,
+      rise: 40,
+    })
+  }
+
+  onShieldSave(bullet: Bullet): void {
+    const { juice, audio } = this.context
+    juice.hitStop.freeze(0.09)
+    juice.shake.add(BALANCE.juice.shieldSaveShake)
+    juice.particles.emit({
+      x: bullet.x,
+      y: bullet.y,
+      count: 26,
+      speedMin: 90,
+      speedMax: 340,
+      lifeMin: 0.25,
+      lifeMax: 0.6,
+      sizeMin: 2,
+      sizeMax: 5,
+      colors: [PALETTE.reward, PALETTE.ink],
+      glow: true,
+    })
+    juice.texts.spawn({
+      x: this.field.pivotX,
+      y: this.field.pivotY - BALANCE.core.radius * 2.6,
+      value: 'ЗАРЯД ВИТРАЧЕНО',
+      color: PALETTE.reward,
+      size: 16,
+      life: 0.9,
+      rise: 36,
+    })
+    audio.play('shieldSave')
   }
 
   onCoreHit(bullet: Bullet): void {
@@ -417,12 +477,16 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     juice.shake.apply(renderer)
     renderer.translate(-this.field.pivotX, -this.field.pivotY)
 
-    this.renderField(renderer)
+    this.renderLanes(renderer)
     this.renderTelegraphs(renderer)
     if (!this.context.input.hasInteracted) this.renderHint(renderer)
     this.bullets.render(renderer)
+    this.pulses.render(renderer, this.field)
     this.paddle.render(renderer, this.field)
-    this.core.render(renderer, this.field)
+    this.core.render(renderer, this.field, {
+      segments: this.charge.segments,
+      fillRatio: this.charge.fillRatio,
+    })
     juice.renderEffects(renderer)
 
     renderer.pop()
@@ -439,40 +503,38 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     if (this.state === 'paused') this.renderPauseOverlay(renderer)
   }
 
-  private renderField(renderer: IRenderer): void {
-    const { pivotX, pivotY, outerRadius, laneCount } = this.field
+  private renderLanes(renderer: IRenderer): void {
     const orbit = this.field.paddleOrbit
+    const inner = orbit * 1.25
+    const outer = this.field.outerRadius
+    const half = (this.field.laneSpan * 0.46) / 2
 
-    renderer.arc(pivotX, pivotY, outerRadius, Math.PI, Math.PI * 2, 2, {
-      stroke: PALETTE.grid,
-      alpha: 0.8,
-    })
+    for (let lane = 0; lane < this.field.laneCount; lane++) {
+      const active = lane === this.paddle.lane
+      const angle = this.field.laneAngle(lane)
 
-    for (let i = 0; i <= laneCount; i++) {
-      const angle = -Math.PI + i * this.field.laneSpan
-      const inner = this.field.pointAt(angle, orbit * 0.8)
-      const outer = this.field.pointAt(angle, outerRadius)
-      renderer.line(inner.x, inner.y, outer.x, outer.y, 1, {
-        stroke: PALETTE.grid,
-        alpha: 0.45,
-      })
+      renderer.arc(
+        this.field.pivotX,
+        this.field.pivotY,
+        orbit,
+        angle - half,
+        angle + half,
+        3,
+        { stroke: active ? PALETTE.friendly : PALETTE.grid, alpha: active ? 0.4 : 0.9 },
+      )
+
+      for (let step = 0; step < LANE_FADE_STEPS; step++) {
+        const from = inner + ((outer - inner) * step) / LANE_FADE_STEPS
+        const to = inner + ((outer - inner) * (step + 1)) / LANE_FADE_STEPS
+        const fade = 1 - step / LANE_FADE_STEPS
+        const start = this.field.pointAt(angle, from)
+        const end = this.field.pointAt(angle, to)
+        renderer.line(start.x, start.y, end.x, end.y, active ? 2 : 1, {
+          stroke: active ? PALETTE.friendly : PALETTE.grid,
+          alpha: (active ? 0.4 : 0.34) * fade * 1.15,
+        })
+      }
     }
-
-    for (let i = 0; i < laneCount; i++) {
-      const active = i === this.paddle.lane
-      const angle = this.field.laneAngle(i)
-      const start = this.field.pointAt(angle, orbit * 1.15)
-      const end = this.field.pointAt(angle, outerRadius * 0.97)
-      renderer.line(start.x, start.y, end.x, end.y, active ? 2 : 1, {
-        stroke: active ? PALETTE.friendly : PALETTE.grid,
-        alpha: active ? 0.35 : 0.22,
-      })
-    }
-
-    renderer.arc(pivotX, pivotY, orbit, Math.PI, Math.PI * 2, 1, {
-      stroke: PALETTE.grid,
-      alpha: 0.5,
-    })
   }
 
   private renderTelegraphs(renderer: IRenderer): void {
@@ -484,25 +546,22 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       const grow = Ease.outCubic(telegraph.ratio)
       const pulse = 0.5 + Math.sin(telegraph.ratio * Math.PI * 6) * 0.2
 
-      renderer.circle(point.x, point.y, 34 * (0.5 + grow * 0.9), {
+      renderer.circle(point.x, point.y, 40 * (0.45 + grow), {
         fill: PALETTE.hostile,
-        alpha: 0.06 + grow * 0.14,
+        alpha: 0.05 + grow * 0.13,
         glow: PALETTE.hostile,
-        glowSize: 30 * grow,
+        glowSize: 34 * grow,
       })
-      renderer.circle(point.x, point.y, 13 * (0.35 + grow * 0.8), {
+      renderer.circle(point.x, point.y, 14 * (0.3 + grow * 0.85), {
         fill: PALETTE.hostile,
-        alpha: 0.18 + grow * 0.5 * pulse,
+        alpha: 0.16 + grow * 0.5 * pulse,
       })
 
       const angle = this.field.laneAngle(telegraph.lane)
-      const tail = this.field.pointAt(
-        angle,
-        this.field.outerRadius - 42 * grow,
-      )
+      const tail = this.field.pointAt(angle, this.field.outerRadius - 46 * grow)
       renderer.line(point.x, point.y, tail.x, tail.y, 3, {
         stroke: PALETTE.hostile,
-        alpha: grow * 0.4,
+        alpha: grow * 0.35,
       })
     }
   }
@@ -514,10 +573,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
     for (let i = 0; i < this.field.laneCount; i++) {
       if (i === this.paddle.lane) continue
       const point = this.field.lanePoint(i, orbit)
-      renderer.circle(point.x, point.y, 5, {
-        fill: PALETTE.friendly,
-        alpha: pulse * 0.55,
-      })
+      renderer.circle(point.x, point.y, 5, { fill: PALETTE.friendly, alpha: pulse * 0.55 })
     }
   }
 
@@ -527,7 +583,7 @@ export class PlayScene extends Scene<GameContext> implements CombatListener, Spa
       fill: PALETTE.background,
       alpha: 0.72,
     })
-    renderer.text('ПАУЗА', safe.x + safe.width / 2, safe.y + safe.height / 2 - 14, {
+    renderer.text('ПАУЗА', safe.x + safe.width / 2, safe.y + safe.height / 2 - 42, {
       fill: PALETTE.ink,
       size: 38,
       weight: 800,

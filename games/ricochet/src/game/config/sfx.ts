@@ -1,14 +1,35 @@
 import type { SfxSpec } from '@sa/core'
 
 export const SFX = {
-  deflect: {
+  absorb: {
     kind: 'tone',
     wave: 'square',
     frequency: 620,
-    duration: 0.1,
+    duration: 0.09,
     attack: 0.002,
-    volume: 0.36,
+    volume: 0.34,
     pitchVariance: 0.06,
+  },
+  chargeUp: {
+    kind: 'sweep',
+    wave: 'sawtooth',
+    frequency: 380,
+    endFrequency: 1250,
+    duration: 0.34,
+    attack: 0.006,
+    volume: 0.4,
+    pitchVariance: 0.02,
+    lowpass: 3200,
+  },
+  shieldSave: {
+    kind: 'sweep',
+    wave: 'square',
+    frequency: 1100,
+    endFrequency: 240,
+    duration: 0.4,
+    attack: 0.003,
+    volume: 0.46,
+    pitchVariance: 0.03,
   },
   warn: {
     kind: 'tone',
@@ -26,16 +47,6 @@ export const SFX = {
     volume: 0.16,
     pitchVariance: 0.18,
     highpass: 700,
-  },
-  escape: {
-    kind: 'sweep',
-    wave: 'triangle',
-    frequency: 700,
-    endFrequency: 1400,
-    duration: 0.16,
-    attack: 0.004,
-    volume: 0.18,
-    pitchVariance: 0.1,
   },
   coreHit: {
     kind: 'sweep',

@@ -2,7 +2,7 @@ import type { DailySeed, IStorage } from '@sa/core'
 
 export interface RunResult {
   readonly score: number
-  readonly deflects: number
+  readonly catches: number
   readonly bestCombo: number
   readonly durationMs: number
   readonly daily: boolean

@@ -15,7 +15,8 @@
     "budget": "node scripts/check-bundle.mjs",
     "dev": "npm run dev --workspace @sa/ricochet",
     "build": "npm run build --workspace @sa/ricochet",
-    "sim": "npm run sim --workspace @sa/ricochet"
+    "sim": "npm run sim --workspace @sa/ricochet",
+    "pack:itch": "mkdir -p dist-itch && rm -f dist-itch/ricochet.zip && cd games/ricochet/dist && zip -qr ../../../dist-itch/ricochet.zip ."
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

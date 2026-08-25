@@ -41,3 +41,6 @@ dist-types/
 
 # Assembled static site
 site/
+
+# itch.io package
+dist-itch/

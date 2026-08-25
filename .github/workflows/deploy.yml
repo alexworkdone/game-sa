@@ -28,6 +28,12 @@ jobs:
       - run: npm run build
       - run: npm run budget
       - run: node scripts/assemble-site.mjs
+      - run: npm run pack:itch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ricochet-itch
+          path: dist-itch/ricochet.zip
+          retention-days: 30
       - uses: actions/configure-pages@v5
         with:
           enablement: true

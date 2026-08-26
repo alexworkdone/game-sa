@@ -44,3 +44,6 @@ site/
 
 # itch.io package
 dist-itch/
+
+# Приватні нотатки — не в репозиторій
+games/ricochet/DESIGN-ECONOMY.md

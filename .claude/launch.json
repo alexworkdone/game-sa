@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace", "@sa/ricochet"],
       "port": 5173
+    },
+    {
+      "name": "crucible",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "@sa/crucible"],
+      "port": 5174
     }
   ]
 }

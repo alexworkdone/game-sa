@@ -1,4 +1,8 @@
 {
   "files": [],
-  "references": [{ "path": "./packages/core" }, { "path": "./games/ricochet" }]
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./games/ricochet" },
+    { "path": "./games/crucible" }
+  ]
 }

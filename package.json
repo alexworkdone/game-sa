@@ -14,9 +14,12 @@
     "typecheck": "tsc -b --pretty",
     "budget": "node scripts/check-bundle.mjs",
     "dev": "npm run dev --workspace @sa/ricochet",
-    "build": "npm run build --workspace @sa/ricochet",
+    "build": "npm run build --workspaces --if-present",
     "sim": "npm run sim --workspace @sa/ricochet",
-    "pack:itch": "mkdir -p dist-itch && rm -f dist-itch/ricochet.zip && cd games/ricochet/dist && zip -qr ../../../dist-itch/ricochet.zip ."
+    "pack:itch": "mkdir -p dist-itch && rm -f dist-itch/ricochet.zip && cd games/ricochet/dist && zip -qr ../../../dist-itch/ricochet.zip .",
+    "dev:crucible": "npm run dev --workspace @sa/crucible",
+    "build:ricochet": "npm run build --workspace @sa/ricochet",
+    "build:crucible": "npm run build --workspace @sa/crucible"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

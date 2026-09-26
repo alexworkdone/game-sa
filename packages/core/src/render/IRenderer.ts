@@ -10,6 +10,25 @@ export interface ShapeStyle {
   readonly glowSize?: number
 }
 
+export type ClipShape =
+  | {
+      readonly kind: 'rect'
+      readonly x: number
+      readonly y: number
+      readonly width: number
+      readonly height: number
+      readonly radius?: number
+    }
+  | { readonly kind: 'circle'; readonly x: number; readonly y: number; readonly radius: number }
+  | {
+      readonly kind: 'sector'
+      readonly x: number
+      readonly y: number
+      readonly radius: number
+      readonly startAngle: number
+      readonly endAngle: number
+    }
+
 export type TextAlign = 'left' | 'center' | 'right'
 export type TextBaseline = 'top' | 'middle' | 'bottom' | 'alphabetic'
 
@@ -35,6 +54,7 @@ export interface IRenderer extends IDisposable {
   rotate(radians: number): void
   scale(x: number, y: number): void
   alpha(value: number): void
+  clip(shape: ClipShape): void
 
   circle(x: number, y: number, radius: number, style: ShapeStyle): void
   ring(x: number, y: number, radius: number, thickness: number, style: ShapeStyle): void

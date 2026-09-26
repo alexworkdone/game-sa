@@ -1,0 +1,62 @@
+export const LAYOUT = {
+  designWidth: 720,
+  designHeight: 1280,
+  infoHeightRatio: 0.07,
+  infoHeightMin: 84,
+  infoHeightMax: 120,
+  sideMargin: 14,
+  columnGap: 16,
+  crucibleWidthRatio: 0.42,
+  crucibleHeightRatio: 0.3,
+  crucibleTopGap: 10,
+  categoryHeight: 58,
+  menuButton: 30,
+  categoryGap: 9,
+  categoryTopGap: 18,
+  gridTopGap: 14,
+  gridCellTarget: 170,
+  gridColumnsMin: 3,
+  gridColumnsMax: 6,
+  gridIconRatio: 0.32,
+  gridLabelSpace: 36,
+  feedRowHeight: 40,
+  feedHintLine: 30,
+  feedIndent: 26,
+  panelPadding: 22,
+  panelRow: 54,
+} as const
+
+export const TIMING = {
+  boltFlight: 0.3,
+  brewDelay: 0.8,
+  craftedHold: 1.9,
+  craftedPop: 0.45,
+  fizzleDelay: 0.55,
+  tapMoveLimit: 22,
+  tapTimeLimit: 0.4,
+  hintIdleDelay: 60,
+  peekDelay: 10,
+} as const
+
+export const TEXT = {
+  infoLabel: 20,
+  infoValue: 40,
+  feedCaption: 20,
+  feedName: 26,
+  feedPart: 24,
+  feedHint: 24,
+  tileLabel: 21,
+  tileCount: 18,
+  categoryLabel: 20,
+  categoryCount: 18,
+  crucibleHint: 22,
+  crucibleResult: 30,
+  message: 26,
+} as const
+
+export const FEEL = {
+  friction: 0.015,
+  dragResistance: 0.4,
+  boundSmoothing: 0.0006,
+  settleSpeed: 4,
+} as const

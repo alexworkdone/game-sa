@@ -1,5 +1,6 @@
 export type {
   IRenderer,
+  ClipShape,
   ShapeStyle,
   TextStyle,
   TextAlign,

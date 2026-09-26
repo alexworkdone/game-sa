@@ -1,5 +1,5 @@
 import type { IViewport } from '../viewport/IViewport.js'
-import type { IRenderer, ShapeStyle, TextStyle } from './IRenderer.js'
+import type { ClipShape, IRenderer, ShapeStyle, TextStyle } from './IRenderer.js'
 
 export interface Canvas2DRendererOptions {
   readonly viewport: IViewport
@@ -81,6 +81,37 @@ export class Canvas2DRenderer implements IRenderer {
 
   alpha(value: number): void {
     this.context.globalAlpha = value
+  }
+
+  clip(shape: ClipShape): void {
+    this.context.beginPath()
+    if (shape.kind === 'circle') {
+      this.context.arc(shape.x, shape.y, Math.max(0, shape.radius), 0, Math.PI * 2)
+    } else if (shape.kind === 'sector') {
+      this.context.moveTo(shape.x, shape.y)
+      this.context.arc(
+        shape.x,
+        shape.y,
+        Math.max(0, shape.radius),
+        shape.startAngle,
+        shape.endAngle,
+      )
+      this.context.closePath()
+    } else {
+      const r = Math.min(shape.radius ?? 0, Math.abs(shape.width) / 2, Math.abs(shape.height) / 2)
+      if (r <= 0) {
+        this.context.rect(shape.x, shape.y, shape.width, shape.height)
+      } else {
+        const { x, y, width, height } = shape
+        this.context.moveTo(x + r, y)
+        this.context.arcTo(x + width, y, x + width, y + height, r)
+        this.context.arcTo(x + width, y + height, x, y + height, r)
+        this.context.arcTo(x, y + height, x, y, r)
+        this.context.arcTo(x, y, x + width, y, r)
+        this.context.closePath()
+      }
+    }
+    this.context.clip()
   }
 
   private applyStyle(style: ShapeStyle): void {

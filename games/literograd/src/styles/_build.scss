@@ -1,0 +1,100 @@
+.builds {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bcard {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  gap: 14px;
+  padding: 16px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background-color: var(--card);
+
+  &--afford {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px var(--ink-wash);
+  }
+
+  &--flash {
+    animation: card-flash 1.3s ease;
+  }
+
+  &__pic .bpic {
+    width: 62px;
+    height: 98px;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+
+    h3 {
+      font: 600 17px/1.25 var(--font-ui);
+    }
+  }
+
+  &__now {
+    font-size: 14px;
+  }
+
+  &__next {
+    color: var(--muted);
+    font-size: 14px;
+
+    .lvl {
+      color: var(--ink);
+      font-weight: 600;
+    }
+  }
+
+  &__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: auto;
+    padding-top: 8px;
+  }
+}
+
+.pips {
+  display: flex;
+  gap: 5px;
+
+  i {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--ink);
+    border-radius: 50%;
+  }
+
+  .on {
+    background-color: var(--ink);
+  }
+}
+
+@keyframes card-flash {
+  0% {
+    box-shadow: 0 0 0 0 var(--hl);
+  }
+
+  30% {
+    box-shadow: 0 0 0 7px var(--hl);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}

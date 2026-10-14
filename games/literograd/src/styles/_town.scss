@@ -1,0 +1,141 @@
+.town {
+  position: relative;
+  overflow: hidden;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  background-color: var(--card);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  box-shadow: var(--shadow);
+
+  &__scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    cursor: grab;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    &--dragging {
+      cursor: grabbing;
+    }
+
+    svg {
+      display: block;
+      width: 900px;
+      max-width: none;
+      height: auto;
+    }
+  }
+}
+
+.pan-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background-color: var(--ink);
+  color: var(--on-ink);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  transition: opacity 0.3s;
+
+  &--gone {
+    opacity: 0;
+  }
+}
+
+.progress-card {
+  gap: 8px;
+
+  &__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-weight: 600;
+
+    b {
+      color: var(--ink);
+      font: 700 22px/1 var(--font-tile);
+      white-space: nowrap;
+    }
+  }
+
+  &__sub {
+    color: var(--muted);
+    font-size: 13px;
+  }
+}
+
+.goal {
+  gap: 12px;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  &__pic {
+    flex: none;
+
+    .bpic {
+      width: 52px;
+      height: 82px;
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+
+    p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+  }
+
+  &--done {
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px var(--red-wash);
+
+    h3 {
+      color: var(--red);
+      font: 400 28px/1.1 var(--font-hand);
+    }
+
+    p {
+      font-size: 14px;
+    }
+  }
+}
+
+.decor-card {
+  &__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+
+    span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+  }
+
+  &__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}

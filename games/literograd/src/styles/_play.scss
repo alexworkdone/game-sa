@@ -1,0 +1,121 @@
+.prefs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__label {
+    min-width: 64px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+}
+
+.modes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mode {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background-color: var(--card);
+
+  h3 {
+    font: 600 18px/1.25 var(--font-ui);
+  }
+
+  p {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__glyphs {
+    display: flex;
+    gap: 5px;
+
+    span {
+      display: grid;
+      place-items: center;
+      min-width: 32px;
+      height: 32px;
+      padding: 0 4px;
+      border: 1.5px solid var(--line);
+      border-radius: 7px;
+      color: var(--ink);
+      font: 700 14px/1 var(--font-tile);
+    }
+
+    .mark {
+      border-color: transparent;
+      background-color: var(--hl);
+      color: var(--hl-text);
+    }
+  }
+
+  &__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 2px;
+  }
+
+  &__meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: var(--muted);
+    font-size: 13px;
+
+    b {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  &__bonus {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  &--locked &__glyphs span {
+    border-style: dashed;
+    color: var(--pencil);
+  }
+
+  &--locked &__glyphs .mark {
+    border-color: var(--pencil);
+    background-color: transparent;
+    color: var(--pencil);
+  }
+}
+
+.lock-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}

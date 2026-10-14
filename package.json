@@ -22,7 +22,9 @@
     "build:crucible": "npm run build --workspace @sa/crucible",
     "dev:quartet": "npm run dev --workspace @sa/quartet",
     "build:quartet": "npm run build --workspace @sa/quartet",
-    "validate:quartet": "npm run validate --workspace @sa/quartet"
+    "validate:quartet": "npm run validate --workspace @sa/quartet",
+    "dev:literograd": "npm run dev --workspace @sa/literograd",
+    "build:literograd": "npm run build --workspace @sa/literograd"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

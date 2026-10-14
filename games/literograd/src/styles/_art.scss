@@ -1,0 +1,235 @@
+.ink-art {
+  .ln,
+  [class*='f-'] {
+    stroke: var(--ink);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .ln {
+    fill: none;
+  }
+
+  .thin {
+    stroke-width: 1.2;
+  }
+
+  .f-wall {
+    fill: var(--w-wall);
+  }
+
+  .f-roof {
+    fill: var(--w-roof);
+  }
+
+  .f-win {
+    fill: var(--w-win);
+  }
+
+  .f-green {
+    fill: var(--w-green);
+  }
+
+  .f-water {
+    fill: var(--w-water);
+  }
+
+  .f-stone {
+    fill: var(--w-stone);
+  }
+
+  .f-paper {
+    fill: var(--w-paper);
+  }
+
+  .f-hl {
+    fill: var(--hl);
+  }
+
+  .f-flag {
+    fill: var(--red);
+  }
+
+  .svg-t {
+    fill: var(--ink);
+    font: 700 10px var(--font-tile);
+    text-anchor: middle;
+  }
+
+  .hatch {
+    stroke: var(--pencil);
+    stroke-width: 1.2;
+    stroke-linecap: round;
+  }
+
+  .ground {
+    stroke-width: 2.4;
+  }
+
+  .jet {
+    fill: none;
+    stroke: var(--jet);
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-dasharray: 5 6;
+    animation: art-flow 0.9s linear infinite;
+  }
+
+  .beam {
+    fill: var(--hl);
+    stroke: none;
+    opacity: 0.34;
+    animation: art-pulse 2.6s ease-in-out infinite;
+  }
+
+  .sails {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: art-spin 9s linear infinite;
+  }
+
+  .hand {
+    transform-box: view-box;
+    transform-origin: 0 0;
+    animation: art-spin 14s linear infinite;
+  }
+
+  .cloud {
+    animation: art-drift 22s ease-in-out infinite alternate;
+  }
+
+  .fw {
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: art-firework 2.8s ease-out infinite;
+
+    line {
+      stroke-width: 2.4;
+      stroke-linecap: round;
+    }
+  }
+
+  .fw-a line {
+    stroke: var(--red);
+  }
+
+  .fw-a circle {
+    fill: var(--red);
+  }
+
+  .fw-b line {
+    stroke: var(--hl);
+  }
+
+  .fw-b circle {
+    fill: var(--hl);
+  }
+
+  .fw-c line {
+    stroke: var(--jet);
+  }
+
+  .fw-c circle {
+    fill: var(--jet);
+  }
+
+  .back {
+    opacity: 0.8;
+  }
+
+  .bld {
+    cursor: pointer;
+  }
+
+  .sketch * {
+    fill: none !important;
+    stroke: var(--pencil) !important;
+    stroke-width: 1.6 !important;
+    stroke-dasharray: 3 4;
+    animation: none !important;
+  }
+
+  .sketch .beam,
+  .sketch .jet,
+  .sketch text {
+    display: none;
+  }
+
+  .drawn :is(path, rect, circle, ellipse, line) {
+    stroke-dasharray: 420;
+    stroke-dashoffset: 420;
+    animation: art-draw 1.6s ease forwards;
+  }
+
+  &.still * {
+    animation: none !important;
+  }
+
+  &.still .fw {
+    display: none;
+  }
+}
+
+@keyframes art-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes art-flow {
+  to {
+    stroke-dashoffset: -22;
+  }
+}
+
+@keyframes art-pulse {
+  50% {
+    opacity: 0.14;
+  }
+}
+
+@keyframes art-drift {
+  to {
+    transform: translateX(26px);
+  }
+}
+
+@keyframes art-firework {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  55% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes art-draw {
+  0% {
+    stroke-dashoffset: 420;
+    fill-opacity: 0;
+  }
+
+  60% {
+    stroke-dashoffset: 0;
+    fill-opacity: 0;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+    fill-opacity: 1;
+  }
+}

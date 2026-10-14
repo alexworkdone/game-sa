@@ -1,0 +1,95 @@
+@mixin dark-palette {
+  color-scheme: dark;
+  --desk: #0b0d14;
+  --paper: #12151f;
+  --card: #1a1e2b;
+  --grid: #1e2434;
+  --margin: #6e2f3a;
+  --pen1: #a3b1ff;
+  --pen2: #7ed4ab;
+  --pen3: #c7a7f2;
+  --pen4: #e3a77b;
+  --pen5: #e6c35c;
+  --on-ink: #12151f;
+  --text: #e7eaf3;
+  --muted: #98a1b8;
+  --line: #2d3447;
+  --tile-edge: #353d55;
+  --red: #ff7485;
+  --red-wash: rgb(255 116 133 / 0.13);
+  --hl: #e6c443;
+  --pencil: #56607c;
+  --disabled: #242a3a;
+  --w-wall: #262d42;
+  --w-roof: #7b4150;
+  --w-win: #b89a35;
+  --w-green: #2f5240;
+  --w-water: #26496a;
+  --w-stone: #363b4c;
+  --w-paper: #1f2433;
+  --jet: #79b8e6;
+  --scrim: rgb(4 6 12 / 0.62);
+  --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 14px 30px -20px rgb(0 0 0 / 0.8);
+}
+
+:root {
+  color-scheme: light;
+  --desk: #e6eaf1;
+  --paper: #f8fafd;
+  --card: #ffffff;
+  --grid: #e1e8f2;
+  --margin: #eba3ac;
+  --pen1: #2e3a9e;
+  --pen2: #1d7a52;
+  --pen3: #6a3d9e;
+  --pen4: #8a4a1e;
+  --pen5: #8a6200;
+  --ink: var(--pen1);
+  --ink-wash: color-mix(in srgb, var(--ink) 11%, transparent);
+  --on-ink: #ffffff;
+  --text: #1b2031;
+  --muted: #5f6982;
+  --line: #d2dbe8;
+  --tile-edge: #c8d3e3;
+  --red: #c9304a;
+  --red-wash: rgb(201 48 74 / 0.09);
+  --hl: #f7d84a;
+  --hl-edge: #c9a92a;
+  --hl-text: #2b2400;
+  --pencil: #9aa3b7;
+  --disabled: #e7ebf2;
+  --w-wall: #edf1f9;
+  --w-roof: #f1b5ab;
+  --w-win: #f8e08a;
+  --w-green: #c4e1b1;
+  --w-water: #bbdcf3;
+  --w-stone: #e4e1d8;
+  --w-paper: #ffffff;
+  --jet: #5aa1d8;
+  --scrim: rgb(22 26 40 / 0.46);
+  --shadow: 0 1px 0 rgb(27 32 49 / 0.04), 0 14px 30px -20px rgb(27 32 49 / 0.45);
+
+  --radius: 16px;
+  --frame-width: 480px;
+  --gutter: 16px;
+
+  --font-hand: 'Bad Script', 'Segoe Print', 'Comic Sans MS', cursive;
+  --font-ui: 'Golos Text', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-tile: 'Unbounded', 'Golos Text', system-ui, sans-serif;
+
+  @media (prefers-color-scheme: dark) {
+    @include dark-palette;
+  }
+}
+
+@for $pen from 2 through 5 {
+  :root[data-pen='#{$pen}'] {
+    --ink: var(--pen#{$pen});
+  }
+}
+
+@for $pen from 1 through 5 {
+  .pen-#{$pen} {
+    --ink: var(--pen#{$pen});
+  }
+}

@@ -340,13 +340,13 @@ export class AlchemyScene extends Scene<GameContext> {
     }
 
     if (this.stage.hitsCrucible(x, y)) {
-      this.tapCrucible()
+      this.tapCrucible(x, y)
       return
     }
 
     if (!this.stage.hitsGrid(x, y)) return
     const tile = this.grid.hitTest(x, y)
-    if (tile && !tile.locked) this.toggleElement(tile.def)
+    if (tile && !tile.locked) this.addElement(tile.def)
   }
 
   private applyPanelAction(action: PanelAction): void {
@@ -372,32 +372,9 @@ export class AlchemyScene extends Scene<GameContext> {
     audio.play('select', { pitch: 1.1, volume: 0.45 })
   }
 
-  private toggleElement(def: ElementDef): void {
+  private addElement(def: ElementDef): void {
     if (this.crucible.phase !== 'idle') return
     const { audio, juice } = this.context
-
-    if (this.crucible.holds(def.id) > 0) {
-      this.crucible.take(def.id)
-      audio.play('clear', { pitch: 1.3 })
-      const spot = this.grid.positionOf(def.id)
-      if (spot) {
-        juice.particles.emit({
-          x: spot.x,
-          y: spot.y,
-          count: 10,
-          speedMin: 30,
-          speedMax: 130,
-          lifeMin: 0.16,
-          lifeMax: 0.36,
-          sizeMin: 1.5,
-          sizeMax: 3,
-          colors: def.tones,
-          drag: 3,
-          glow: true,
-        })
-      }
-      return
-    }
 
     if (!this.crucible.reserve()) {
       this.crucible.shake = 0.5
@@ -428,13 +405,46 @@ export class AlchemyScene extends Scene<GameContext> {
     })
   }
 
-  private tapCrucible(): void {
+  private removeSlot(index: number): void {
+    const id = this.crucible.takeAt(index)
+    if (!id) return
+    const { audio, juice } = this.context
+    const def = this.registry.get(id)
+    audio.play('clear', { pitch: 1.3 })
+    juice.particles.emit({
+      x: this.stage.crucibleCenterX,
+      y: this.stage.crucibleCenterY,
+      count: 12,
+      speedMin: 40,
+      speedMax: 160,
+      lifeMin: 0.16,
+      lifeMax: 0.4,
+      sizeMin: 1.5,
+      sizeMax: 3.5,
+      colors: def.tones,
+      drag: 2.8,
+      glow: true,
+    })
+  }
+
+  private tapCrucible(px?: number, py?: number): void {
     if (this.crucible.phase !== 'idle' || this.bolts.flying > 0) return
     if (this.crucible.filled === 0) return
-    if (this.crucible.filled === 1) {
-      this.emptyCrucible()
-      return
+
+    if (px !== undefined && py !== undefined) {
+      const view = this.stage.crucible
+      const button = this.crucibleView.mixButton(view)
+      const onButton =
+        this.crucible.filled >= 2 &&
+        (px - button.x) ** 2 + (py - button.y) ** 2 <= button.radius * button.radius
+      if (!onButton) {
+        const index = this.crucibleView.regionAt(view, this.crucible.filled, px, py)
+        if (index !== null) this.removeSlot(index)
+        return
+      }
     }
+
+    if (this.crucible.filled < 2) return
     const result = this.recipes.resolve(this.crucible.slots)
     if (result) {
       this.crucible.result = result

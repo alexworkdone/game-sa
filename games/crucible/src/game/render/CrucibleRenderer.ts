@@ -79,6 +79,34 @@ export class CrucibleRenderer {
     }))
   }
 
+  mixButton(view: CrucibleView): { x: number; y: number; radius: number } {
+    return {
+      x: view.x + view.size / 2,
+      y: view.y + view.size / 2,
+      radius: view.size * 0.22,
+    }
+  }
+
+  regionAt(view: CrucibleView, count: number, px: number, py: number): number | null {
+    if (count <= 0) return null
+    const cx = view.x + view.size / 2
+    const cy = view.y + view.size / 2
+    if (count === 1) return 0
+    if (count === 2) return py < cy ? 1 : 0
+    const angle = Math.atan2(py - cy, px - cx)
+    const centers = [TOP_CENTER + SECTOR_SPAN * 2, TOP_CENTER + SECTOR_SPAN, TOP_CENTER]
+    let best = 0
+    let bestGap = Number.POSITIVE_INFINITY
+    centers.forEach((center, index) => {
+      const gap = Math.abs(((((angle - center + Math.PI) % TAU) + TAU) % TAU) - Math.PI)
+      if (gap < bestGap) {
+        bestGap = gap
+        best = index
+      }
+    })
+    return best
+  }
+
   render(
     renderer: IRenderer,
     view: CrucibleView,
@@ -251,11 +279,29 @@ export class CrucibleRenderer {
       this.paintLabel(
         renderer,
         view,
-        settings.t('tapToMix'),
-        PALETTE.spark,
-        0.65 + breathe * 0.5,
-        TEXT.crucibleHint,
+        settings.t('tapToRemove'),
+        PALETTE.inkMuted,
+        0.7,
+        TEXT.crucibleRemove,
       )
+      const button = this.mixButton(view)
+      renderer.circle(button.x, button.y, button.radius, {
+        fill: PALETTE.background,
+        alpha: 0.88,
+      })
+      renderer.ring(button.x, button.y, button.radius, 2 + breathe * 1.6, {
+        stroke: PALETTE.spark,
+        alpha: 0.9,
+        glow: PALETTE.spark,
+        glowSize: 10 + breathe * 16,
+      })
+      renderer.text(settings.t('mix'), button.x, button.y, {
+        size: TEXT.crucibleMix,
+        weight: 800,
+        align: 'center',
+        baseline: 'middle',
+        fill: PALETTE.spark,
+      })
     }
   }
 

@@ -13,7 +13,8 @@ export type UiKey =
   | 'progress'
   | 'pickElements'
   | 'addOneMore'
-  | 'tapToMix'
+  | 'mix'
+  | 'tapToRemove'
   | 'allOff'
   | 'feedEmpty'
   | 'crucibleFull'
@@ -43,7 +44,8 @@ export const UI: Record<Lang, Record<UiKey, string>> = {
     progress: 'ПРОГРЕС',
     pickElements: 'ОБЕРИ ЕЛЕМЕНТИ',
     addOneMore: 'ДОДАЙ ЩЕ ОДИН',
-    tapToMix: 'ТОРКНИСЬ, ЩОБ ЗМІШАТИ',
+    mix: 'ЗМІШАТИ',
+    tapToRemove: 'ТОРКНИСЬ ЕЛЕМЕНТА, ЩОБ ПРИБРАТИ',
     allOff: 'Усі категорії вимкнено',
     feedEmpty: 'Поки порожньо',
     crucibleFull: 'Горнило заповнене',
@@ -72,7 +74,8 @@ export const UI: Record<Lang, Record<UiKey, string>> = {
     progress: 'PROGRESS',
     pickElements: 'PICK ELEMENTS',
     addOneMore: 'ADD ONE MORE',
-    tapToMix: 'TAP TO MIX',
+    mix: 'MIX',
+    tapToRemove: 'TAP AN ELEMENT TO REMOVE',
     allOff: 'All categories are off',
     feedEmpty: 'Nothing yet',
     crucibleFull: 'Crucible is full',

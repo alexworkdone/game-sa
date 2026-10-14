@@ -52,11 +52,10 @@ export class Crucible {
     this.elapsed = 0
   }
 
-  take(id: ElementId): boolean {
-    const index = this.slots.lastIndexOf(id)
-    if (index < 0) return false
-    this.slots.splice(index, 1)
-    return true
+  takeAt(index: number): ElementId | null {
+    if (index < 0 || index >= this.slots.length) return null
+    const [removed] = this.slots.splice(index, 1)
+    return removed ?? null
   }
 
   clear(): void {

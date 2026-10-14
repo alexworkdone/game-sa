@@ -50,6 +50,8 @@ export const TEXT = {
   categoryLabel: 20,
   categoryCount: 18,
   crucibleHint: 22,
+  crucibleRemove: 18,
+  crucibleMix: 22,
   crucibleResult: 30,
   message: 26,
 } as const

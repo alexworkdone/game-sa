@@ -2,6 +2,17 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "magic-carpet",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace",
+        "@sa/magic-carpet"
+      ],
+      "port": 5178
+    },
+    {
       "name": "ricochet",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

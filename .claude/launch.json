@@ -45,6 +45,17 @@
         "@sa/literograd"
       ],
       "port": 5176
+    },
+    {
+      "name": "lighthouse",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace",
+        "@sa/lighthouse"
+      ],
+      "port": 5177
     }
   ]
 }

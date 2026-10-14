@@ -24,7 +24,9 @@
     "build:quartet": "npm run build --workspace @sa/quartet",
     "validate:quartet": "npm run validate --workspace @sa/quartet",
     "dev:literograd": "npm run dev --workspace @sa/literograd",
-    "build:literograd": "npm run build --workspace @sa/literograd"
+    "build:literograd": "npm run build --workspace @sa/literograd",
+    "dev:lighthouse": "npm run dev --workspace @sa/lighthouse",
+    "build:lighthouse": "npm run build --workspace @sa/lighthouse"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

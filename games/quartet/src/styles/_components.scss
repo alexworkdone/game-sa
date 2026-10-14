@@ -1,0 +1,387 @@
+.particle {
+  --c: var(--purple);
+  --c-edge: var(--purple-edge);
+  --c-rgb: var(--purple-rgb);
+
+  display: inline-block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--white) 0 10%, var(--c) 45%, var(--c-edge) 100%);
+  box-shadow: 0 0 10px rgb(var(--c-rgb) / 0.65);
+
+  &--yellow {
+    --c: var(--yellow);
+    --c-edge: var(--yellow-edge);
+    --c-rgb: var(--yellow-rgb);
+  }
+
+  &--green {
+    --c: var(--green);
+    --c-edge: var(--green-edge);
+    --c-rgb: var(--green-rgb);
+  }
+
+  &--blue {
+    --c: var(--blue);
+    --c-edge: var(--blue-edge);
+    --c-rgb: var(--blue-rgb);
+  }
+
+  &--sm {
+    width: 10px;
+    height: 10px;
+  }
+
+  &--lg {
+    width: 24px;
+    height: 24px;
+  }
+
+  &--xl {
+    width: 36px;
+    height: 36px;
+    box-shadow: 0 0 20px rgb(var(--c-rgb) / 0.8);
+  }
+}
+
+.particle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 800 13px/1 var(--font-body);
+  white-space: nowrap;
+
+  &--sm {
+    font-size: 12px;
+
+    .particle {
+      width: 10px;
+      height: 10px;
+    }
+  }
+
+  &--lg {
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background-color: rgb(var(--ink-rgb) / 0.35);
+    font-size: 18px;
+
+    .particle {
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  &--gain .particle-chip__value::before {
+    content: '+';
+  }
+}
+
+.progress {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: rgb(var(--white-rgb) / 0.12);
+
+  &__fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--blue));
+    transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  &--xp .progress__fill {
+    background: linear-gradient(90deg, var(--primary-edge), var(--primary-light));
+  }
+
+  &--lg {
+    height: 12px;
+  }
+}
+
+.stars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+
+  &__item {
+    display: grid;
+    color: rgb(var(--white-rgb) / 0.18);
+
+    .icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    &--on {
+      color: var(--gold);
+      filter: drop-shadow(0 0 6px rgb(var(--gold-rgb) / 0.55));
+    }
+  }
+
+  &--node .stars__item .icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  &--result {
+    gap: 8px;
+
+    .stars__item {
+      .icon {
+        width: 52px;
+        height: 52px;
+      }
+
+      &:nth-child(2) {
+        transform: translateY(-12px);
+
+        .icon {
+          width: 64px;
+          height: 64px;
+        }
+      }
+
+      &--on:not(.stars__item--pop) {
+        color: rgb(var(--white-rgb) / 0.18);
+        filter: none;
+      }
+
+      &--pop .icon {
+        animation: star-pop 0.5s var(--spring) both;
+      }
+    }
+  }
+}
+
+.planet-view {
+  display: block;
+  flex-shrink: 0;
+
+  .planet {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+}
+
+.planet {
+  &--silhouette {
+    color: var(--text-muted);
+  }
+
+  &--animated {
+    .planet__surface,
+    .planet__clouds {
+      animation: planet-spin var(--spin) linear infinite;
+    }
+
+    .planet__orbit {
+      transform-box: view-box;
+      transform-origin: 100px 100px;
+      animation: planet-orbit var(--orbit) linear infinite;
+    }
+
+    .planet__sparkle {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: planet-sparkle 2.4s var(--delay) ease-in-out infinite;
+    }
+
+    .planet__disk {
+      animation: planet-disk 3s linear infinite;
+    }
+  }
+}
+
+.rarity-tag {
+  --r: var(--rarity-common);
+  --r-rgb: var(--rarity-common-rgb);
+
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background-color: rgb(var(--r-rgb) / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(var(--r-rgb) / 0.55);
+  color: var(--r);
+  font: 800 12px/1 var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  &--rare {
+    --r: var(--rarity-rare);
+    --r-rgb: var(--rarity-rare-rgb);
+  }
+
+  &--epic {
+    --r: var(--rarity-epic);
+    --r-rgb: var(--rarity-epic-rgb);
+  }
+
+  &--legendary {
+    --r: var(--rarity-legendary);
+    --r-rgb: var(--rarity-legendary-rgb);
+  }
+}
+
+.planet-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  &__type {
+    color: var(--text-muted);
+    font: 800 14px/1 var(--font-body);
+  }
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--global-radius, 16px);
+  background-color: rgb(var(--ink-rgb) / 0.4);
+
+  &__item {
+    height: 40px;
+    border: 0;
+    border-radius: 12px;
+    background: none;
+    color: var(--text-muted);
+    font: 800 14px/1 var(--font-body);
+    transition:
+      background-color var(--transition),
+      color var(--transition);
+
+    &--active {
+      background-color: rgb(var(--white-rgb) / 0.12);
+      box-shadow: 0 2px 0 rgb(var(--ink-rgb) / 0.4);
+      color: var(--text);
+    }
+  }
+}
+
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  background-color: rgb(var(--white-rgb) / 0.16);
+  transition: background-color var(--transition);
+
+  &__knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: var(--white);
+    box-shadow: 0 2px 4px rgb(var(--ink-rgb) / 0.4);
+    transition: transform var(--transition);
+  }
+
+  &--on {
+    background-color: var(--green-edge);
+
+    .switch__knob {
+      transform: translateX(20px);
+    }
+  }
+}
+
+.streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px 0 6px;
+  border-radius: 999px;
+  background-color: rgb(var(--orange-rgb) / 0.18);
+  color: var(--orange);
+  font: 800 13px/1 var(--font-body);
+
+  .icon-wrap {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.logo-mark {
+  display: grid;
+  grid-template-columns: repeat(2, 14px);
+  gap: 4px;
+  transform: rotate(-8deg);
+
+  &__cell {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    box-shadow: 0 2px 0 rgb(var(--ink-rgb) / 0.35);
+
+    &--yellow {
+      background-color: var(--yellow);
+    }
+
+    &--green {
+      background-color: var(--green);
+    }
+
+    &--blue {
+      background-color: var(--blue);
+    }
+
+    &--purple {
+      background-color: var(--purple);
+    }
+  }
+}
+
+@keyframes planet-spin {
+  to {
+    transform: translateX(108px);
+  }
+}
+
+@keyframes planet-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes planet-sparkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes planet-disk {
+  to {
+    stroke-dashoffset: -64;
+  }
+}
+
+@keyframes star-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-40deg);
+  }
+}

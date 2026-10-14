@@ -23,6 +23,17 @@
       ],
       "port": 5174,
       "autoPort": true
+    },
+    {
+      "name": "quartet",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace",
+        "@sa/quartet"
+      ],
+      "port": 5175
     }
   ]
 }

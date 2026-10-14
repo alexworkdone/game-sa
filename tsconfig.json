@@ -1,8 +1,17 @@
 {
   "files": [],
   "references": [
-    { "path": "./packages/core" },
-    { "path": "./games/ricochet" },
-    { "path": "./games/crucible" }
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./games/ricochet"
+    },
+    {
+      "path": "./games/crucible"
+    },
+    {
+      "path": "./games/quartet"
+    }
   ]
 }

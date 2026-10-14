@@ -1,0 +1,5 @@
+{
+  "initialBytes": 8388608,
+  "maxFiles": 1500,
+  "note": "Poki: initial < 8 MB. Own target for this prototype: < 500 KB including fonts."
+}

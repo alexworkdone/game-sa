@@ -19,7 +19,10 @@
     "pack:itch": "mkdir -p dist-itch && rm -f dist-itch/ricochet.zip && cd games/ricochet/dist && zip -qr ../../../dist-itch/ricochet.zip .",
     "dev:crucible": "npm run dev --workspace @sa/crucible",
     "build:ricochet": "npm run build --workspace @sa/ricochet",
-    "build:crucible": "npm run build --workspace @sa/crucible"
+    "build:crucible": "npm run build --workspace @sa/crucible",
+    "dev:quartet": "npm run dev --workspace @sa/quartet",
+    "build:quartet": "npm run build --workspace @sa/quartet",
+    "validate:quartet": "npm run validate --workspace @sa/quartet"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

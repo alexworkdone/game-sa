@@ -1,0 +1,331 @@
+.galaxy {
+  &__empty {
+    padding: 24px 0;
+    color: var(--text-muted);
+    font: 700 14px/1.4 var(--font-body);
+    text-align: center;
+  }
+}
+
+.system {
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
+  aspect-ratio: 2;
+
+  &__sun {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, var(--white), var(--gold) 40%, var(--orange) 100%);
+    box-shadow:
+      0 0 24px rgb(var(--gold-rgb) / 0.8),
+      0 0 64px rgb(var(--orange-rgb) / 0.45);
+    translate: -50% -50%;
+    animation: sun-pulse 4s ease-in-out infinite;
+  }
+
+  &__orbit {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--r) * 2%);
+    aspect-ratio: 1 / 0.42;
+    border: 1px dashed rgb(var(--white-rgb) / 0.16);
+    border-radius: 50%;
+    translate: -50% -50%;
+  }
+
+  &__track {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--r) * 2%);
+    aspect-ratio: 1;
+    transform: scaleY(0.42) rotate(var(--phase));
+    translate: -50% -50%;
+    animation: orbit-track var(--period) linear infinite;
+    pointer-events: none;
+  }
+
+  &__planet {
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+    padding: 0;
+    border: 0;
+    background: none;
+    transform: rotate(calc(var(--phase) * -1)) scaleY(2.381);
+    animation: orbit-counter var(--period) linear infinite;
+    pointer-events: auto;
+
+    .planet-view {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__empty {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    color: var(--text-muted);
+    font: 700 13px/1.4 var(--font-body);
+    text-align: center;
+  }
+}
+
+.collection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__head {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text-muted);
+    font: 800 13px/1 var(--font-body);
+
+    strong {
+      color: var(--text);
+    }
+  }
+}
+
+.atlas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.atlas-card {
+  --r-rgb: var(--white-rgb);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  border: 1px solid rgb(var(--r-rgb) / 0.3);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgb(var(--r-rgb) / 0.1), rgb(var(--white-rgb) / 0.03));
+  text-align: center;
+  transition: transform var(--transition-fast);
+
+  &--common {
+    --r-rgb: var(--rarity-common-rgb);
+  }
+
+  &--rare {
+    --r-rgb: var(--rarity-rare-rgb);
+  }
+
+  &--epic {
+    --r-rgb: var(--rarity-epic-rgb);
+  }
+
+  &--legendary {
+    --r-rgb: var(--rarity-legendary-rgb);
+
+    box-shadow: 0 0 20px rgb(var(--rarity-legendary-rgb) / 0.2);
+  }
+
+  &--locked {
+    border-style: dashed;
+    color: var(--text-muted);
+  }
+
+  &__planet {
+    width: 96px;
+    height: 96px;
+  }
+
+  &__name {
+    font: 800 14px/1.2 var(--font-body);
+  }
+
+  &__rarities {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__count {
+    margin-left: 4px;
+    color: var(--text-muted);
+    font: 800 12px/1 var(--font-body);
+  }
+
+  &__recipe {
+    display: flex;
+    gap: 4px;
+  }
+
+  &__hint {
+    color: var(--purple);
+    font: 800 14px/1 var(--font-body);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: rgb(var(--white-rgb) / 0.15);
+
+  &--on.pip--common {
+    background-color: var(--rarity-common);
+  }
+
+  &--on.pip--rare {
+    background-color: var(--rarity-rare);
+  }
+
+  &--on.pip--epic {
+    background-color: var(--rarity-epic);
+  }
+
+  &--on.pip--legendary {
+    background-color: var(--rarity-legendary);
+    box-shadow: 0 0 6px var(--rarity-legendary);
+  }
+}
+
+.worlds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.world {
+  --r-rgb: var(--rarity-common-rgb);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px 4px;
+  border: 1px solid rgb(var(--r-rgb) / 0.3);
+  border-radius: 16px;
+  background-color: rgb(var(--white-rgb) / 0.04);
+
+  &--rare {
+    --r-rgb: var(--rarity-rare-rgb);
+  }
+
+  &--epic {
+    --r-rgb: var(--rarity-epic-rgb);
+  }
+
+  &--legendary {
+    --r-rgb: var(--rarity-legendary-rgb);
+  }
+
+  &__planet {
+    width: 72px;
+    height: 72px;
+  }
+
+  &__name {
+    max-width: 100%;
+    overflow: hidden;
+    font: 800 12px/1.2 var(--font-body);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+.planet-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+
+  &__planet {
+    width: min(60vw, 220px);
+    height: min(60vw, 220px);
+    margin: -8px 0;
+  }
+
+  &__name {
+    font: 800 24px/1.2 var(--font-display);
+  }
+
+  &__lore {
+    max-width: 320px;
+    color: var(--text-muted);
+    font: 700 14px/1.45 var(--font-body);
+  }
+
+  &__facts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+
+    div {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 8px;
+      border-radius: 14px;
+      background-color: rgb(var(--white-rgb) / 0.05);
+    }
+
+    dt {
+      color: var(--text-muted);
+      font: 800 11px/1 var(--font-body);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    dd {
+      font: 800 13px/1.2 var(--font-body);
+    }
+  }
+
+  &__portions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
+
+@keyframes orbit-track {
+  to {
+    transform: scaleY(0.42) rotate(calc(var(--phase) + 360deg));
+  }
+}
+
+@keyframes orbit-counter {
+  to {
+    transform: rotate(calc((var(--phase) + 360deg) * -1)) scaleY(2.381);
+  }
+}
+
+@keyframes sun-pulse {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.08;
+  }
+}

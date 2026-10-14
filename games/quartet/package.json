@@ -1,0 +1,21 @@
+{
+  "name": "@sa/quartet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "validate": "esbuild tools/validate-bank.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/quartet-validate.mjs --log-level=warning && node node_modules/.cache/quartet-validate.mjs"
+  },
+  "dependencies": {
+    "@fontsource/nunito": "^5.3.0",
+    "@fontsource/unbounded": "^5.3.0",
+    "@sa/core": "*"
+  },
+  "devDependencies": {
+    "sass": "^1.105.0"
+  }
+}

@@ -21,6 +21,6 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     host: true,
-    port: 5174,
+    ...(process.env.PORT ? { port: Number(process.env.PORT), strictPort: true } : {}),
   },
 }))

@@ -11,6 +11,8 @@ export class Canvas2DRenderer implements IRenderer {
   private readonly viewport: IViewport
   private readonly context: CanvasRenderingContext2D
   private readonly fontFamily: string
+  private readonly alphaStack: number[] = []
+  private layerAlpha = 1
 
   constructor(options: Canvas2DRendererOptions) {
     const context = options.viewport.canvas.getContext('2d', {
@@ -36,6 +38,8 @@ export class Canvas2DRenderer implements IRenderer {
   begin(): void {
     const { scale, offsetX, offsetY } = this.viewport
     this.context.setTransform(scale, 0, 0, scale, offsetX, offsetY)
+    this.alphaStack.length = 0
+    this.layerAlpha = 1
     this.context.globalAlpha = 1
     this.context.globalCompositeOperation = 'source-over'
     this.context.lineCap = 'round'
@@ -61,10 +65,12 @@ export class Canvas2DRenderer implements IRenderer {
 
   push(): void {
     this.context.save()
+    this.alphaStack.push(this.layerAlpha)
   }
 
   pop(): void {
     this.context.restore()
+    this.layerAlpha = this.alphaStack.pop() ?? 1
   }
 
   translate(x: number, y: number): void {
@@ -80,7 +86,8 @@ export class Canvas2DRenderer implements IRenderer {
   }
 
   alpha(value: number): void {
-    this.context.globalAlpha = value
+    const parent = this.alphaStack[this.alphaStack.length - 1] ?? 1
+    this.layerAlpha = parent * Math.max(0, Math.min(1, value))
   }
 
   clip(shape: ClipShape): void {
@@ -115,7 +122,7 @@ export class Canvas2DRenderer implements IRenderer {
   }
 
   private applyStyle(style: ShapeStyle): void {
-    this.context.globalAlpha = style.alpha ?? 1
+    this.context.globalAlpha = this.layerAlpha * (style.alpha ?? 1)
     this.context.globalCompositeOperation = style.blend ?? 'source-over'
     if (style.glow) {
       this.context.shadowColor = style.glow

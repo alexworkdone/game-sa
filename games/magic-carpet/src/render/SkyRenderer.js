@@ -43,6 +43,7 @@ export class SkyRenderer {
     const rY = fX
     const cx = width * 0.5
     const horizon = height * 0.5 + Math.tan(camera.pitch) * focal
+    const rows = Math.min(height, Math.max(0, Math.ceil(horizon - 0.5)))
 
     const zenR = atmosphere.zenithR
     const zenG = atmosphere.zenithG
@@ -96,26 +97,17 @@ export class SkyRenderer {
       const sunA = dirX * sunX + dirY * sunY
       const moonA = dirX * moonX + dirY * moonY
 
-      for (let y = 0, o = column; y < height; y++, o += stride) {
+      for (let y = 0, o = column; y < rows; y++, o += stride) {
         const v = (horizon - y - 0.5) * invFocal
         const invLength = 1 / Math.sqrt(lengthSq + v * v)
         const e = v * invLength
-        let r
-        let g
-        let b
-        if (e > 0) {
-          let k = e * 1.6
-          if (k > 1) k = 1
-          k = 1 - (1 - k) * (1 - k)
-          r = horR + (zenR - horR) * k
-          g = horG + (zenG - horG) * k
-          b = horB + (zenB - horB) * k
-        } else {
-          r = horR
-          g = horG
-          b = horB
-        }
-        let haze = 1 - (e > 0 ? e * 7 : 0)
+        let k = e * 1.6
+        if (k > 1) k = 1
+        k = 1 - (1 - k) * (1 - k)
+        let r = horR + (zenR - horR) * k
+        let g = horG + (zenG - horG) * k
+        let b = horB + (zenB - horB) * k
+        let haze = 1 - e * 7
         if (haze > 0) {
           haze *= haze
           r += (fogR - r) * haze

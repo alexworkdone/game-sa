@@ -131,3 +131,40 @@ export class CastleOrb {
     this.#ring.setAttribute('transform', `rotate(${((-time * 60) % 360).toFixed(1)})`)
   }
 }
+
+export class MagnetOrb {
+  #pearls
+  #field
+
+  constructor(id) {
+    this.defs = [
+      svg('radialGradient', { id: `${id}-core` }, stops([[0, '#ffffff'], [0.35, '#d6f3ff'], [0.75, '#5cb8f0'], [1, '#14527e']])),
+      svg('radialGradient', { id: `${id}-pearl` }, stops([[0, '#fffbe6'], [0.5, '#f2c14e'], [1, '#9a6a12']])),
+    ]
+    this.#field = svg(
+      'g',
+      { fill: 'none', stroke: '#a8e4ff', 'stroke-width': 1.6, opacity: 0.7 },
+      [0, 120, 240].map((angle) => svg('path', { d: arc(23, 70), transform: `rotate(${angle})` })),
+    )
+    this.#pearls = Array.from({ length: 4 }, (_, i) => ({ phase: i / 4, element: svg('circle', { r: 3, fill: `url(#${id}-pearl)` }) }))
+    this.element = svg('g', {}, [
+      this.#field,
+      svg('circle', { cx: 0, cy: 0, r: 14, fill: `url(#${id}-core)` }),
+      svg('path', { d: 'M-5 -6 V0 A5 5 0 0 0 5 0 V-6', fill: 'none', stroke: '#0f3d63', 'stroke-width': 2.6, 'stroke-linecap': 'round' }),
+      ...this.#pearls.map((pearl) => pearl.element),
+    ])
+    this.glow = ['#3a9ad8', '#a8e4ff']
+  }
+
+  update(time) {
+    this.#field.setAttribute('transform', `rotate(${((time * 50) % 360).toFixed(1)})`)
+    for (const pearl of this.#pearls) {
+      const cycle = (time * 0.7 + pearl.phase) % 1
+      const reach = 30 - cycle * 16
+      const angle = pearl.phase * Math.PI * 2 + cycle * 2.4
+      pearl.element.setAttribute('cx', (Math.cos(angle) * reach).toFixed(1))
+      pearl.element.setAttribute('cy', (Math.sin(angle) * reach).toFixed(1))
+      pearl.element.setAttribute('r', (3.2 - cycle * 1.6).toFixed(2))
+    }
+  }
+}

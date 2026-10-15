@@ -1,4 +1,5 @@
 import { packRgb, wrapDelta } from '../../core/math.js'
+import { manaRadius } from '../../realm/ManaField.js'
 
 export class BalloonLayer {
   #fleet
@@ -6,6 +7,9 @@ export class BalloonLayer {
   #envelope
   #basket
   #cargo
+  #gaugeBack
+  #gaugeFill
+  #sizeScale
   #xs = new Float32Array(4)
   #ys = new Float32Array(4)
 
@@ -15,6 +19,9 @@ export class BalloonLayer {
     this.#envelope = config.envelope.map((color) => packRgb(...color))
     this.#basket = packRgb(...config.basket)
     this.#cargo = mana.owned.map((color) => packRgb(...color))
+    this.#gaugeBack = packRgb(...config.gauge[0])
+    this.#gaugeFill = packRgb(...config.gauge[1])
+    this.#sizeScale = mana.sizeScale
   }
 
   collect(scene) {
@@ -59,11 +66,33 @@ export class BalloonLayer {
       ys[3] = basketBottom
       batch.polygon(key + 0.001, this.#basket, xs, ys, 4, false)
       if (balloon.cargo > 0) {
-        batch.sphere(key + 0.0015, this.#cargo[0], this.#cargo[1], this.#cargo[2], x, basketTop - 0.2 * scale, 0.8 * scale, -0.4, -0.5)
+        const load = Math.min(manaRadius(balloon.cargo, this.#sizeScale) * 0.55, 1.6) * scale
+        batch.sphere(key + 0.0015, this.#cargo[0], this.#cargo[1], this.#cargo[2], x, basketTop - load * 0.4, load, -0.4, -0.5)
       }
 
       const [highlight, body, shade] = this.#envelope
       batch.sphere(key, highlight, body, shade, x, y - envelope * 0.9, envelope, -0.45, -0.5)
+
+      const fill = Math.min(1, balloon.cargo / balloon.capacity)
+      const gaugeHalf = envelope * 0.85
+      const gaugeHeight = Math.max(3, envelope * 0.16)
+      const gaugeTop = y - envelope * 2.1 - gaugeHeight
+      this.#rect(batch, key - 0.001, this.#gaugeBack, x - gaugeHalf - 1, gaugeTop - 1, gaugeHalf * 2 + 2, gaugeHeight + 2)
+      if (fill > 0) this.#rect(batch, key - 0.002, this.#gaugeFill, x - gaugeHalf, gaugeTop, gaugeHalf * 2 * fill, gaugeHeight)
     }
+  }
+
+  #rect(batch, key, color, x, y, width, height) {
+    const xs = this.#xs
+    const ys = this.#ys
+    xs[0] = x
+    ys[0] = y
+    xs[1] = x + width
+    ys[1] = y
+    xs[2] = x + width
+    ys[2] = y + height
+    xs[3] = x
+    ys[3] = y + height
+    batch.polygon(key, color, xs, ys, 4, false)
   }
 }

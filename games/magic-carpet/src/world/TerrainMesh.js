@@ -1,9 +1,6 @@
 import { wrapDelta } from '../core/math.js'
 import { hashCell } from './PeriodicNoise.js'
 
-export const FACE_LAND = 0
-export const FACE_WATER = 1
-
 const SLOTS = 4
 const unit = (x, y, seed) => hashCell(x, y, seed) / 4294967296
 
@@ -25,14 +22,11 @@ export class TerrainMesh {
     const quads = this.cells * this.cells
     const faces = quads * SLOTS
     this.quadCount = new Uint8Array(quads)
-    this.kind = new Uint8Array(faces)
     this.count = new Uint8Array(faces)
     this.vertices = new Float32Array(faces * 12)
     this.normal = new Float32Array(faces * 3)
     this.color = new Uint32Array(faces)
     this.centroid = new Float32Array(faces * 3)
-    this.depth = new Float32Array(faces)
-    this.phase = new Float32Array(faces)
     this.#triangles = new Float32Array(quads * 2 * 9)
 
     this.#buildVertices(config)
@@ -183,33 +177,21 @@ export class TerrainMesh {
     nz = (nz / length) * flip
 
     const land = []
-    const water = []
     for (let k = 0; k < 3; k++) {
       const p = triangle[k]
       const q = triangle[(k + 1) % 3]
       const pAbove = p[2] >= sea
-      const qAbove = q[2] >= sea
       if (pAbove) land.push(p)
-      else water.push([p[0], p[1], sea, sea - p[2]])
-      if (pAbove !== qAbove) {
+      if (pAbove !== q[2] >= sea) {
         const t = (sea - p[2]) / (q[2] - p[2])
-        const cross = [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, sea, 0]
-        land.push(cross)
-        water.push(cross)
+        land.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, sea])
       }
     }
+    if (land.length < 3) return
 
-    const variation = unit(hashX, hashY, 47)
-    if (land.length >= 3) {
-      const center = this.#center(land)
-      const color = this.#palette.land(center[0], center[1], center[2], nz, variation)
-      this.#write(quad, FACE_LAND, land, nx, ny, nz, color, center, 0, variation)
-    }
-    if (water.length >= 3) {
-      const center = this.#center(water)
-      const depth = water.reduce((sum, p) => sum + (p[3] ?? 0), 0) / water.length
-      this.#write(quad, FACE_WATER, water, 0, 0, 1, 0, center, depth, variation)
-    }
+    const center = this.#center(land)
+    const color = this.#palette.land(center[0], center[1], center[2], nz, unit(hashX, hashY, 47))
+    this.#write(quad, land, nx, ny, nz, color, center)
   }
 
   #center(points) {
@@ -222,9 +204,8 @@ export class TerrainMesh {
     return center
   }
 
-  #write(quad, kind, points, nx, ny, nz, color, center, depth, phase) {
+  #write(quad, points, nx, ny, nz, color, center) {
     const face = quad * SLOTS + this.quadCount[quad]++
-    this.kind[face] = kind
     this.count[face] = points.length
     points.forEach((p, k) => {
       this.vertices[face * 12 + k * 3] = p[0]
@@ -238,7 +219,5 @@ export class TerrainMesh {
     this.centroid[face * 3] = center[0]
     this.centroid[face * 3 + 1] = center[1]
     this.centroid[face * 3 + 2] = center[2]
-    this.depth[face] = depth
-    this.phase[face] = phase
   }
 }

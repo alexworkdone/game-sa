@@ -12,6 +12,7 @@ export const SPELLS = [
     life: 2.6,
     radius: 1.4,
     blast: 7,
+    damage: 16,
     core: [255, 238, 150],
     shell: [255, 132, 42],
     trail: [228, 86, 34],
@@ -48,6 +49,37 @@ export const SPELLS = [
     shell: [255, 206, 84],
     trail: [214, 150, 40],
   },
+  {
+    id: 'magnet',
+    title: 'Магніт',
+    orb: 'magnet',
+    effect: 'magnet',
+    magnet: { seek: 'mana', range: 80, cone: 0.6, turn: 2.6 },
+    gem: ['#8fdcff', '#0d4a7a'],
+    cost: 6,
+    speed: 190,
+    cooldown: 0.8,
+    life: 2.6,
+    radius: 1.3,
+    blast: 10,
+    core: [236, 250, 255],
+    shell: [96, 190, 255],
+    trail: [40, 120, 210],
+  },
+]
+
+export const FOE_SHOTS = [
+  {
+    id: 'bolt',
+    speed: 82,
+    life: 3.4,
+    radius: 0.75,
+    blast: 3,
+    damage: 7,
+    core: [255, 255, 230],
+    shell: [180, 255, 120],
+    trail: [70, 170, 60],
+  },
 ]
 
 export const HANDS = [
@@ -57,6 +89,7 @@ export const HANDS = [
 
 export const MAGIC = {
   poolSize: 96,
+  foePoolSize: 64,
   aimDistance: 320,
   aimSteps: 160,
   burstTime: 0.45,

@@ -376,6 +376,73 @@ body {
   stroke-width: 1;
 }
 
+.marker {
+  --marker-color: var(--muted);
+}
+
+.marker__castle {
+  transform: scale(0.72);
+}
+
+.marker__body {
+  fill: var(--marker-color);
+  stroke: rgba(10, 6, 24, 0.85);
+  stroke-width: 1.4;
+  paint-order: stroke;
+  opacity: 0.8;
+}
+
+.marker__door {
+  fill: rgba(10, 6, 24, 0.75);
+}
+
+.marker__flag {
+  display: none;
+  fill: var(--marker-color);
+  stroke: var(--parchment);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.marker--home .marker__castle {
+  transform: scale(1.05);
+}
+
+.marker--home .marker__body {
+  stroke: var(--parchment);
+  stroke-width: 1.2;
+  opacity: 1;
+}
+
+.marker--home .marker__flag {
+  display: inline;
+}
+
+.marker__arrow {
+  fill: var(--parchment);
+  stroke: rgba(10, 6, 24, 0.85);
+  stroke-width: 1;
+}
+
+.marker--ready .marker__body {
+  stroke: var(--gold);
+  animation: marker-glow 1.2s ease-in-out infinite alternate;
+}
+
+.marker--alarm .marker__body {
+  stroke: #ff5a4e;
+  animation: marker-glow 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes marker-glow {
+  from {
+    stroke-width: 1.2;
+  }
+  to {
+    stroke-width: 3;
+  }
+}
+
 .hud__altimeter {
   position: absolute;
   left: calc(18px + var(--safe-left));
@@ -492,9 +559,36 @@ body {
   align-self: center;
 }
 
-.meter--mana {
-  width: min(220px, 46vw);
+.meter--vital {
+  width: min(150px, 25vw);
   height: 8px;
+}
+
+.meter--health {
+  transform: scaleX(-1);
+}
+
+.vital {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meter__fill--wizard {
+  background: linear-gradient(90deg, #c8263a, #ff8d7a);
+}
+
+.mana__value--health {
+  color: #ffb3a8;
+  text-align: left;
+}
+
+.hud__hurt {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(220, 30, 30, 0.55) 100%);
+  pointer-events: none;
 }
 
 .hud__mana {
@@ -503,7 +597,7 @@ body {
   bottom: calc(14px + var(--safe-bottom));
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
   padding: 5px 12px;
   border: 1px solid var(--gold-soft);
   border-radius: 999px;
@@ -536,8 +630,17 @@ body {
   background: linear-gradient(90deg, #3d7bff, #8fd0ff);
 }
 
-.meter__fill--balance {
+.meter__fill--progress {
   background: linear-gradient(90deg, #b8358f, #ff9be3);
+}
+
+.meter__fill--health {
+  background: linear-gradient(90deg, #3f9c4c, #9be08a);
+  transition: background 0.3s ease;
+}
+
+.meter__fill--weak {
+  background: linear-gradient(90deg, #b3262c, #ff8a6b);
 }
 
 .hud__realm {
@@ -571,10 +674,59 @@ body {
   white-space: nowrap;
 }
 
+.realm__row .readout__label {
+  white-space: nowrap;
+}
+
+.realm__row--health {
+  padding-block: 3px;
+}
+
+.realm__row--health[hidden] {
+  display: none;
+}
+
+.realm__row--alarm {
+  animation: realm-alarm 0.7s ease-in-out infinite alternate;
+}
+
+.realm__value--health {
+  min-width: 7ch;
+  font-size: 13px;
+  text-align: right;
+}
+
 .realm__castle {
+  max-width: calc(100vw - 32px);
   color: var(--parchment);
   font-size: 13px;
-  white-space: nowrap;
+  text-wrap: balance;
+}
+
+.realm__castle--ready {
+  color: var(--gold);
+  font-weight: 700;
+  animation: realm-ready 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes realm-alarm {
+  from {
+    border-color: var(--gold-soft);
+    box-shadow: none;
+  }
+  to {
+    border-color: #ff5a4e;
+    box-shadow: 0 0 12px rgba(255, 70, 60, 0.65);
+  }
+}
+
+@keyframes realm-ready {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .hud__toast {
@@ -738,6 +890,15 @@ body {
 
 .spell-icon--castle path + path {
   fill: #6b4210;
+}
+
+.spell-icon--magnet path {
+  stroke: #8fdcff;
+  stroke-width: 3.2;
+}
+
+.spell-icon--magnet path + path {
+  stroke: #ff7a6b;
 }
 
 .hud__stats {
@@ -963,36 +1124,7 @@ body {
     height: 150px;
   }
 
-  .meter--mana {
-  width: min(220px, 46vw);
-  height: 8px;
-}
-
-.hud__mana {
-  position: absolute;
-  left: 50%;
-  bottom: calc(14px + var(--safe-bottom));
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 12px;
-  border: 1px solid var(--gold-soft);
-  border-radius: 999px;
-  background: var(--ink-glass);
-  backdrop-filter: blur(6px);
-  transform: translateX(-50%);
-}
-
-.mana__value {
-  min-width: 3ch;
-  color: #bfe2ff;
-  font-size: 15px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.meter--wide {
+  .meter--wide {
     width: 110px;
   }
 

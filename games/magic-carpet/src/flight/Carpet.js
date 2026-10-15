@@ -13,6 +13,7 @@ export class Carpet {
     this.pitch = pitch
     this.roll = 0
     this.turnRate = 0
+    this.gear = 0
   }
 
   remember() {

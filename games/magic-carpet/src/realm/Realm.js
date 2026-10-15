@@ -1,12 +1,12 @@
 import { wrapDelta } from '../core/math.js'
 import { Castle } from './Castle.js'
 import { Construction } from './Construction.js'
-import { PLAYER } from './ManaField.js'
+import { PLAYER, manaRadius } from './ManaField.js'
 
 export class Realm {
   #mesh
   #terrain
-  #forest
+  #cover
   #model
   #config
   #player
@@ -16,18 +16,24 @@ export class Realm {
   #units
   #structures
   #notify
+  #manaScale
+  #manaHover
+  #probe
   #construction = null
-  #balanced = false
+  #completed = false
+  #announced = 0
   #seen = { dx: 0, dy: 0, dz: 0 }
   castles
-  hostiles = []
   playerCastle = null
   goal = 1
 
-  constructor({ mesh, terrain, forest, model, config, player, mana, reserve, balloons, castles, units, structures, notify }) {
+  constructor({ mesh, terrain, cover, model, config, player, mana, manaScale, manaHover, probe, reserve, balloons, castles, units, structures, notify }) {
+    this.#manaScale = manaScale
+    this.#manaHover = manaHover
+    this.#probe = probe
     this.#mesh = mesh
     this.#terrain = terrain
-    this.#forest = forest
+    this.#cover = cover
     this.#model = model
     this.#config = config
     this.#player = player
@@ -44,8 +50,17 @@ export class Realm {
     this.goal = Math.max(1, Math.round(totalMana * this.#config.goalShare))
   }
 
-  get equilibrium() {
+  get balloons() {
+    return this.#balloons.balloons
+  }
+
+  get progress() {
     return this.playerCastle ? Math.min(1, this.playerCastle.mana / this.goal) : 0
+  }
+
+  get upgradeReady() {
+    const next = this.nextLevelMana()
+    return next !== null && !this.building && this.playerCastle.mana >= next
   }
 
   get building() {
@@ -84,19 +99,38 @@ export class Realm {
 
   possessNear(x, y, z, radius) {
     const mana = this.#mana
-    const target = mana.nearest(x, y, z, radius, (i) => mana.owner[i] !== PLAYER)
-    if (target < 0) return false
-    mana.possess(target, PLAYER)
+    const size = this.#mesh.size
+    let best = -1
+    let bestGap = Infinity
+    for (let i = 0; i < mana.capacity; i++) {
+      if (!mana.isFree(i) || mana.owner[i] === PLAYER) continue
+      const distance = Math.hypot(wrapDelta(mana.x[i] - x, size), wrapDelta(mana.y[i] - y, size), mana.z[i] - z)
+      const gap = distance - manaRadius(mana.value[i], this.#manaScale)
+      if (gap <= radius && gap < bestGap) {
+        bestGap = gap
+        best = i
+      }
+    }
+    if (best < 0) return false
+    mana.possess(best, PLAYER)
     return true
   }
 
   findForeignMana(x, y, z, ux, uy, uz, range, cosCone) {
+    return this.#seekMana(x, y, z, ux, uy, uz, range, cosCone, (i) => this.#mana.owner[i] !== PLAYER)
+  }
+
+  findMana(x, y, z, ux, uy, uz, range, cosCone) {
+    return this.#seekMana(x, y, z, ux, uy, uz, range, cosCone, () => true)
+  }
+
+  #seekMana(x, y, z, ux, uy, uz, range, cosCone, accept) {
     const mana = this.#mana
     const size = this.#mesh.size
     let best = -1
     let bestScore = Infinity
     for (let i = 0; i < mana.capacity; i++) {
-      if (!mana.isFree(i) || mana.owner[i] === PLAYER) continue
+      if (!mana.isFree(i) || !accept(i)) continue
       const dx = wrapDelta(mana.x[i] - x, size)
       const dy = wrapDelta(mana.y[i] - y, size)
       const dz = mana.z[i] - z
@@ -117,42 +151,68 @@ export class Realm {
     return this.#seen
   }
 
-  findHostile(x, y, z, ux, uy, uz, range, cosCone) {
+  dropMana(x, y, value) {
+    this.#mana.add(x, y, this.#probe.groundAt(x, y) + this.#manaHover + manaRadius(value, this.#manaScale), value)
+  }
+
+  damageCastle(castle, amount) {
+    if (castle.standing && castle.damage(amount)) this.#ruin(castle)
+  }
+
+  blast(x, y, z, damage, radius) {
     const size = this.#mesh.size
-    let best = null
-    let bestScore = Infinity
-    for (const hostile of this.hostiles) {
-      const dx = wrapDelta(hostile.x - x, size)
-      const dy = wrapDelta(hostile.y - y, size)
-      const dz = hostile.z - z
-      const distance = Math.hypot(dx, dy, dz)
-      if (distance > range || distance < 1e-3) continue
-      const facing = (dx * ux + dy * uy + dz * uz) / distance
-      if (facing < cosCone) continue
-      const score = distance * (2 - facing)
-      if (score < bestScore) {
-        bestScore = score
-        best = hostile
-      }
+    for (const castle of this.castles) {
+      if (castle !== this.playerCastle && castle.struck(x, y, z, radius, size)) this.damageCastle(castle, damage)
     }
-    if (!best) return null
-    this.#seen.dx = wrapDelta(best.x - x, size)
-    this.#seen.dy = wrapDelta(best.y - y, size)
-    this.#seen.dz = best.z - z
-    return this.#seen
   }
 
   update(dt, carpet) {
     if (this.#construction) {
-      this.#construction.update(dt)
-      if (this.#construction.done) this.#construction = null
+      const construction = this.#construction
+      construction.update(dt)
+      this.#mana.settle(this.#probe, construction.site.x, construction.site.y, construction.reach, this.#manaHover, this.#manaScale)
+      if (construction.done) this.#construction = null
     }
     for (const castle of this.castles) castle.update(dt)
-    this.#balloons.update(dt, this.playerCastle)
+    const waiting = this.upgradeReady
+    this.#balloons.update(dt, this.playerCastle, waiting)
     this.#reserve.update(dt, this.isHome(carpet.x, carpet.y))
-    if (!this.#balanced && this.equilibrium >= 1) {
-      this.#balanced = true
-      this.#notify('Рівновагу світу відновлено!')
+    if (waiting && this.#announced !== this.playerCastle.level + 1) {
+      this.#announced = this.playerCastle.level + 1
+      this.#notify(`Мани досить на рівень ${this.#announced} — наростіть замок, кулі чекають`)
+    }
+    if (!this.#completed && this.progress >= 1) {
+      this.#completed = true
+      this.#notify('Прогрес 100% — світ відновлено!')
+    }
+  }
+
+  #ruin(castle) {
+    const config = this.#config
+    const own = castle === this.playerCastle
+    const lowered = castle.lower(own ? 1 : 0)
+    const spilled = castle.standing ? castle.mana * config.spillShare : castle.mana
+    castle.mana -= spilled
+    this.#spill(castle, spilled)
+    castle.heal(config.ruinHealth)
+    if (!own) {
+      this.#notify(castle.standing ? `Чужий замок упав до рівня ${castle.level} — мана розсипалась` : 'Чужий замок зруйновано вщент!')
+      return
+    }
+    this.#announced = castle.level + 1
+    this.#notify(lowered ? `Замок зруйновано до рівня ${castle.level} — мана розсипалась!` : 'Замок ледь тримається — мана розсипалась!')
+  }
+
+  #spill(castle, amount) {
+    const count = this.#config.spillPearls
+    const value = amount / count
+    if (value < 1) return
+    for (let k = 0; k < count; k++) {
+      const angle = k * 2.39996 + castle.x
+      const reach = castle.plaza * (0.7 + 0.25 * ((k * 0.618) % 1))
+      const x = castle.x + Math.cos(angle) * reach
+      const y = castle.y + Math.sin(angle) * reach
+      this.dropMana(x, y, value)
     }
   }
 
@@ -173,7 +233,7 @@ export class Realm {
     }
     const size = this.#mesh.size
     const crowded = this.castles.some(
-      (castle) => Math.hypot(wrapDelta(x - castle.x, size), wrapDelta(y - castle.y, size)) < config.castleSpacing,
+      (castle) => castle.standing && Math.hypot(wrapDelta(x - castle.x, size), wrapDelta(y - castle.y, size)) < config.castleSpacing,
     )
     if (crowded) return 'Надто близько до іншого замку'
     let wet = 0
@@ -204,7 +264,7 @@ export class Realm {
     this.#construction = new Construction({
       mesh: this.#mesh,
       terrain: this.#terrain,
-      forest: this.#forest,
+      cover: this.#cover,
       site,
       reach: config.plazaRadius + config.blendReach,
       duration: config.levelTime,

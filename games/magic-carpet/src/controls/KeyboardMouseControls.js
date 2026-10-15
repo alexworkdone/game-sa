@@ -5,10 +5,13 @@ export class KeyboardMouseControls {
   #cursor = { x: 0, y: 0 }
   #triggers = [false, false]
   #pixels = { x: 0, y: 0 }
+  #doubleTap
+  #taps = { forward: -Infinity, back: -Infinity }
 
-  constructor(input, bindings) {
+  constructor(input, bindings, { doubleTap }) {
     this.#input = input
     this.#bindings = bindings
+    this.#doubleTap = doubleTap
   }
 
   resize(width, height) {
@@ -47,6 +50,10 @@ export class KeyboardMouseControls {
     return this.#triggers
   }
 
+  readGearShift(now) {
+    return this.#tappedTwice('forward', now) - this.#tappedTwice('back', now)
+  }
+
   pickedSpell(count) {
     for (let slot = 1; slot <= count; slot++) if (this.wasPressed(`spell${slot}`)) return slot - 1
     return -1
@@ -62,6 +69,13 @@ export class KeyboardMouseControls {
 
   endFrame() {
     this.#input.endFrame()
+  }
+
+  #tappedTwice(action, now) {
+    if (!this.wasPressed(action)) return 0
+    const quick = now - this.#taps[action] <= this.#doubleTap
+    this.#taps[action] = quick ? -Infinity : now
+    return quick ? 1 : 0
   }
 
   #axis(negative, positive) {

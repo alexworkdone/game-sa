@@ -1,8 +1,8 @@
-import { AIM, BINDINGS, TOUCH, capturedCodes, prefersTouch } from '../config/controls.js'
+import { AIM, BINDINGS, KEYS, TOUCH, capturedCodes, prefersTouch } from '../config/controls.js'
 import { FLIGHT, RIG } from '../config/flight.js'
-import { CASTLE, GROUND, GROUND_PALETTE, TREES } from '../config/ground.js'
-import { HANDS, MAGIC, SPELLS } from '../config/magic.js'
-import { BALLOONS, MANA, PLAYER, REALM, RESERVE } from '../config/realm.js'
+import { CASTLE, GROUND, GROUND_PALETTE, SCATTER, TREES, WATER } from '../config/ground.js'
+import { FOE_SHOTS, HANDS, MAGIC, SPELLS } from '../config/magic.js'
+import { BALLOONS, CROWD, MAGNETISM, MANA, PLAYER, REALM, RESERVE, WIZARD } from '../config/realm.js'
 import { RENDER } from '../config/render.js'
 import { CLOUDS, DAY, MOON, SKY_KEYS, STARS } from '../config/sky.js'
 import { WORLD } from '../config/world.js'
@@ -10,6 +10,7 @@ import { CompositeControls } from '../controls/CompositeControls.js'
 import { KeyboardMouseControls } from '../controls/KeyboardMouseControls.js'
 import { TouchControls } from '../controls/TouchControls.js'
 import { FixedStepLoop } from '../core/FixedStepLoop.js'
+import { wrapDelta } from '../core/math.js'
 import { SeededRandom } from '../core/SeededRandom.js'
 import { KeyboardMouseInput } from '../core/KeyboardMouseInput.js'
 import { Camera, CameraRig } from '../flight/CameraRig.js'
@@ -26,17 +27,26 @@ import { ResolutionScaler } from '../render/ResolutionScaler.js'
 import { SceneRenderer } from '../render/SceneRenderer.js'
 import { SkyRenderer } from '../render/SkyRenderer.js'
 import { SunShadowMap } from '../render/SunShadowMap.js'
+import { WaterRenderer } from '../render/WaterRenderer.js'
+import { WaveField } from '../render/WaveField.js'
 import { ForestLayer } from '../render/layers/ForestLayer.js'
 import { ProjectileLayer } from '../render/layers/ProjectileLayer.js'
+import { ScatterLayer } from '../render/layers/ScatterLayer.js'
 import { SolidLayer } from '../render/layers/SolidLayer.js'
 import { TerrainLayer } from '../render/layers/TerrainLayer.js'
 import { BalloonFleet } from '../realm/BalloonFleet.js'
 import { Castle } from '../realm/Castle.js'
+import { Crowd } from '../realm/Crowd.js'
+import { Magnetism } from '../realm/Magnetism.js'
 import { ManaField } from '../realm/ManaField.js'
 import { ManaReserve } from '../realm/ManaReserve.js'
 import { Realm } from '../realm/Realm.js'
+import { Vitals } from '../realm/Vitals.js'
 import { BalloonLayer } from '../render/layers/BalloonLayer.js'
+import { CastleGaugeLayer } from '../render/layers/CastleGaugeLayer.js'
+import { MagnetLayer } from '../render/layers/MagnetLayer.js'
 import { ManaLayer } from '../render/layers/ManaLayer.js'
+import { PeopleLayer } from '../render/layers/PeopleLayer.js'
 import { Atmosphere } from '../sky/Atmosphere.js'
 import { CloudLayer } from '../sky/CloudLayer.js'
 import { DayCycle } from '../sky/DayCycle.js'
@@ -47,7 +57,10 @@ import { Hud } from '../ui/Hud.js'
 import { Screens } from '../ui/Screens.js'
 import { SpellWheel, spellIcon } from '../ui/SpellWheel.js'
 import { CastleModel } from '../world/CastleModel.js'
+import { CoverSet } from '../world/CoverSet.js'
 import { FacePalette } from '../world/FacePalette.js'
+import { GroundPattern } from '../world/GroundPattern.js'
+import { Scatter } from '../world/Scatter.js'
 import { Forest } from '../world/Forest.js'
 import { GroundProbe } from '../world/GroundProbe.js'
 import { TerrainMesh } from '../world/TerrainMesh.js'
@@ -57,10 +70,11 @@ export const DEFAULT_FACTORIES = {
   createWorldSource: (config) => new FallbackWorldSource(new WorkerWorldSource(config), new InlineWorldSource(config)),
   createInput: (element) => new KeyboardMouseInput(element, capturedCodes()),
   createControls: (input, parent) => {
-    const keyboard = new KeyboardMouseControls(input, BINDINGS)
+    const keyboard = new KeyboardMouseControls(input, BINDINGS, KEYS)
     return prefersTouch() ? new CompositeControls([keyboard, new TouchControls(parent, TOUCH)]) : keyboard
   },
   createSkyRenderer: (parts) => new SkyRenderer(parts),
+  createWaterRenderer: (parts) => new WaterRenderer(parts),
   createSceneRenderer: (parts) => new SceneRenderer(parts),
   createPresenter: (canvas) => new CanvasPresenter(canvas),
   createScreens: (parent) => new Screens(parent, prefersTouch()),
@@ -86,7 +100,9 @@ export class MagicCarpetApp {
   #skyView = { width: 0, height: 0, focal: 1, pixelScale: 1 }
   #sceneFrame = { focal: 1, extentX: 0, extentY: 0, lineWidth: 1 }
   #aim = { u: 0, v: 0 }
+  #markers = []
   #skyMs = 0
+  #waterMs = 0
   #sceneMs = 0
   #primitives = 0
   #fps = 0
@@ -100,6 +116,7 @@ export class MagicCarpetApp {
   #shadows
   #stars
   #sky
+  #water
   #scene
   #buffer
   #presenter
@@ -111,6 +128,11 @@ export class MagicCarpetApp {
   #rig
   #camera
   #projectiles
+  #foeShots
+  #foeHooks
+  #crowd
+  #magnetism
+  #vitals
   #caster
   #mana
   #reserve
@@ -155,6 +177,18 @@ export class MagicCarpetApp {
     return this.#reserve
   }
 
+  get crowd() {
+    return this.#crowd
+  }
+
+  get vitals() {
+    return this.#vitals
+  }
+
+  get magnetism() {
+    return this.#magnetism
+  }
+
   async start(seed = WORLD.defaultSeed) {
     const factories = this.#factories
     this.#screens = factories.createScreens(this.#dom.ui)
@@ -193,6 +227,15 @@ export class MagicCarpetApp {
     if (this.#controls.wasPressed('stats')) this.#hud.toggleStats()
     const picked = this.#controls.pickedSpell(SPELLS.length)
     if (picked >= 0) this.#selectSpell(picked)
+    const shift = this.#controls.readGearShift(this.#time)
+    if (shift !== 0) this.#shiftGear(shift)
+  }
+
+  #shiftGear(delta) {
+    const changed = this.#flight.shiftGear(this.#carpet, delta)
+    const speed = this.#flight.speedOf(this.#carpet)
+    if (changed) this.#hud.notify(`Швидкість килима: ${speed}`)
+    else this.#hud.notify(delta > 0 ? `Швидкість уже найбільша: ${speed}` : `Швидкість уже найменша: ${speed}`)
   }
 
   #selectSpell(index) {
@@ -212,7 +255,11 @@ export class MagicCarpetApp {
     this.#clouds.update(dt)
     this.#caster.update(dt, controls.readTriggers(), this.#eye(), this.#aimRay())
     this.#projectiles.update(dt, this.#ground, this.#spellHooks)
+    this.#crowd.update(dt, this.#carpet, { pool: this.#foeShots, spell: FOE_SHOTS[0] })
+    this.#foeShots.update(dt, this.#ground, this.#foeHooks)
+    this.#magnetism.update(dt)
     this.#realm.update(dt, this.#carpet)
+    this.#vitals.update(dt, this.#realm.isHome(this.#carpet.x, this.#carpet.y))
   }
 
   render(alpha, dt) {
@@ -222,13 +269,17 @@ export class MagicCarpetApp {
 
   #buildWorld(seed) {
     const terrain = this.#terrain
-    this.#mesh = new TerrainMesh(terrain, new FacePalette(terrain, GROUND_PALETTE, WORLD.snowLine), GROUND)
+    const pattern = new GroundPattern(terrain, seed, GROUND)
+    this.#mesh = new TerrainMesh(terrain, new FacePalette(terrain, GROUND_PALETTE, WORLD.snowLine, pattern), GROUND)
     const castleModel = new CastleModel(CASTLE)
-    const castles = terrain.castles.map((site) => new Castle(site, castleModel, REALM))
+    const castles = terrain.castles.map(
+      (site) => new Castle({ ...site, mana: REALM.levelMana[site.level] * REALM.castleMana }, castleModel, REALM),
+    )
     const units = castles.flatMap((castle) => castle.units)
     const structures = [...castles]
     this.#ground = new GroundProbe(this.#mesh, structures)
     const forest = new Forest(terrain, this.#mesh, TREES, seed)
+    const scatter = new Scatter(terrain, this.#mesh, pattern, SCATTER, WORLD.snowLine, seed)
 
     this.#day = new DayCycle(DAY)
     this.#atmosphere = new Atmosphere(SKY_KEYS, MOON)
@@ -246,11 +297,14 @@ export class MagicCarpetApp {
     this.#realm = new Realm({
       mesh: this.#mesh,
       terrain,
-      forest,
+      cover: new CoverSet([forest, scatter]),
       model: castleModel,
       config: REALM,
       player: PLAYER,
       mana: this.#mana,
+      manaScale: MANA.sizeScale,
+      manaHover: MANA.hover,
+      probe: this.#ground,
       reserve: this.#reserve,
       balloons,
       castles,
@@ -258,7 +312,7 @@ export class MagicCarpetApp {
       structures,
       notify,
     })
-    this.#realm.setGoal(freeMana)
+    this.#realm.setGoal(castles.reduce((total, castle) => total + castle.mana, freeMana))
     this.#projectiles = new ProjectilePool(MAGIC.poolSize, terrain.size, MAGIC.burstTime)
     this.#caster = new Caster(this.#projectiles, SPELLS, MAGIC, this.#ground, {
       hands: HANDS,
@@ -266,17 +320,41 @@ export class MagicCarpetApp {
       rules: { castle: this.#realm.castleRules() },
       notify,
     })
+    this.#vitals = new Vitals(WIZARD)
+    this.#crowd = new Crowd({
+      mesh: this.#mesh,
+      terrain,
+      config: CROWD,
+      seed,
+      onFall: (x, y, value) => this.#realm.dropMana(x, y, value),
+    })
+    this.#magnetism = new Magnetism({
+      mana: this.#mana,
+      ground: this.#ground,
+      config: MAGNETISM,
+      hover: MANA.hover,
+      sizeScale: MANA.sizeScale,
+      worldSize: terrain.size,
+    })
+    this.#foeShots = new ProjectilePool(MAGIC.foePoolSize, terrain.size, MAGIC.burstTime)
+    this.#foeHooks = {
+      touch: (spell, x, y, z) => this.#shotReaches(FOE_SHOTS[spell], x, y, z),
+      impact: () => {},
+    }
     const homing = new Homing(SPELLS, {
       foreignMana: (...args) => this.#realm.findForeignMana(...args),
-      hostile: (...args) => this.#realm.findHostile(...args),
+      mana: (...args) => this.#realm.findMana(...args),
+      hostile: (...args) => this.#crowd.findTarget(...args),
     })
     this.#spellHooks = {
       guide: (pool, i, dt) => homing.guide(pool, i, dt),
-      touch: (spell, x, y, z) => SPELLS[spell].effect === 'possess' && this.#realm.possessNear(x, y, z, MANA.possessRadius),
+      touch: (spell, x, y, z) => this.#spellTouches(SPELLS[spell], x, y, z),
       impact: (spell, x, y, z) => {
-        const effect = SPELLS[spell].effect
-        if (effect === 'possess') this.#realm.possessNear(x, y, z, MANA.possessSplash)
-        if (effect === 'castle') this.#realm.castCastle(x, y)
+        const spec = SPELLS[spell]
+        if (spec.effect === 'possess') this.#realm.possessNear(x, y, z, MANA.possessSplash)
+        if (spec.effect === 'castle') this.#realm.castCastle(x, y)
+        if (spec.effect === 'blast') this.#blast(spec, x, y, z)
+        if (spec.effect === 'magnet') this.#magnetize(this.#magnetism.pearlNear(x, y, z, MAGNETISM.splash))
       },
     }
 
@@ -287,7 +365,15 @@ export class MagicCarpetApp {
       clouds: this.#clouds,
       config: GROUND,
       seaLevel: terrain.seaLevel,
-      palette: GROUND_PALETTE,
+    })
+    this.#water = this.#factories.createWaterRenderer({
+      atmosphere: this.#atmosphere,
+      clouds: this.#clouds,
+      shader,
+      mesh: this.#mesh,
+      waves: new WaveField(seed, WATER.waves),
+      config: WATER,
+      radius: GROUND.radius,
     })
     this.#scene = this.#factories.createSceneRenderer({
       shader,
@@ -295,11 +381,16 @@ export class MagicCarpetApp {
       config: GROUND,
       layers: [
         new TerrainLayer(this.#mesh),
+        new ScatterLayer(scatter, SCATTER),
         new ForestLayer(forest, TREES),
         new SolidLayer(units, terrain.size, CASTLE.detailRadius),
-        new ManaLayer(this.#mana, MANA, terrain.size),
+        new CastleGaugeLayer(castles, REALM.gauge, terrain.size),
+        new ManaLayer(this.#mana, this.#mesh, MANA, terrain.size),
+        new MagnetLayer(this.#magnetism, this.#mana, this.#ground, SPELLS.find((spell) => spell.id === 'magnet'), MAGNETISM, terrain.size),
+        new PeopleLayer(this.#crowd, this.#mesh, CROWD, FOE_SHOTS[0], terrain.size, CROWD.aggro * 2),
         new BalloonLayer(balloons, BALLOONS, MANA, terrain.size),
         new ProjectileLayer(this.#projectiles, SPELLS, terrain.size),
+        new ProjectileLayer(this.#foeShots, FOE_SHOTS, terrain.size),
       ],
     })
   }
@@ -398,14 +489,95 @@ export class MagicCarpetApp {
     if (this.#state !== STATE.playing) this.#renderFrame(0)
   }
 
-  #castleStatus() {
+  #spellTouches(spec, x, y, z) {
+    if (spec.effect === 'possess') return this.#realm.possessNear(x, y, z, MANA.possessRadius)
+    if (spec.effect === 'blast') {
+      if (!this.#crowd.hit(x, y, z, 0)) return false
+      this.#blast(spec, x, y, z)
+      return true
+    }
+    if (spec.effect === 'magnet') {
+      const target = this.#magnetism.pearlNear(x, y, z, MAGNETISM.touch)
+      if (target < 0) return false
+      this.#magnetize(target)
+      return true
+    }
+    return false
+  }
+
+  #blast(spec, x, y, z) {
+    this.#realm.blast(x, y, z, spec.damage, spec.blast)
+    this.#crowd.hit(x, y, z, spec.blast)
+  }
+
+  #magnetize(target) {
+    if (target < 0) return
+    const pulled = this.#magnetism.attract(target)
+    this.#hud.notify(pulled > 0 ? `Магніт тягне кульок: ${pulled}` : 'Поруч немає менших кульок')
+  }
+
+  #shotReaches(spec, x, y, z) {
+    const carpet = this.#carpet
+    const size = this.#terrain.size
+    const gap = Math.hypot(wrapDelta(carpet.x - x, size), wrapDelta(carpet.y - y, size), carpet.z - z)
+    if (gap > WIZARD.hitRadius) return false
+    if (this.#vitals.damage(spec.damage)) this.#fall()
+    return true
+  }
+
+  #fall() {
+    const carpet = this.#carpet
+    const home = this.#realm.playerCastle ?? this.#terrain.spawn
+    carpet.x = home.x
+    carpet.y = home.y
+    carpet.z = this.#ground.groundAt(home.x, home.y) + FLIGHT.minClearance + 30
+    carpet.vx = 0
+    carpet.vy = 0
+    carpet.vz = 0
+    carpet.remember()
+    this.#vitals.revive()
+    this.#reserve.value *= WIZARD.respawnMana
+    this.#hud.notify('Тебе збили! Килим повертає тебе додому')
+  }
+
+  #castleReport() {
+    const realm = this.#realm
+    const castle = realm.playerCastle
+    const ready = realm.upgradeReady
+    const health = castle && { value: castle.health, max: castle.maxHealth, alarm: castle.underAttack }
+    return { status: this.#castleStatus(ready), ready, health }
+  }
+
+  #castleStatus(ready) {
     const realm = this.#realm
     const castle = realm.playerCastle
     if (!castle) return realm.building ? 'Площа вирівнюється під замок…' : 'Замку ще немає — вибери чари «Замок» і цілься в землю'
-    if (castle.rising) return `Замок росте: рівень ${castle.level}`
+    if (castle.rising) return `Замок росте: рівень\u00a0${castle.level}`
+    if (ready) return `Мани досить на рівень\u00a0${castle.level + 1} — цілься чарами «Замок» у свій замок`
     const next = realm.nextLevelMana()
-    const progress = next === null ? 'найбільший рівень' : `до рівня ${castle.level + 1}: ${Math.floor(castle.mana)} / ${next}`
-    return `Твій замок · рівень ${castle.level} · ${progress}`
+    const progress = next === null ? 'найбільший рівень' : `до рівня\u00a0${castle.level + 1}: ${Math.floor(castle.mana)}\u00a0/\u00a0${next}`
+    return `Твій замок · рівень\u00a0${castle.level} · ${progress}`
+  }
+
+  #castleMarkers() {
+    const realm = this.#realm
+    const carpet = this.#carpet
+    const size = this.#terrain.size
+    const ready = realm.upgradeReady
+    const markers = this.#markers
+    const standing = realm.castles.filter((castle) => castle.standing)
+    markers.length = standing.length
+    standing.forEach((castle, index) => {
+      const marker = (markers[index] ??= {})
+      const home = castle === realm.playerCastle
+      const [r, g, b] = castle.color ?? CASTLE.roofs[castle.banner % CASTLE.roofs.length]
+      marker.bearing = (Math.atan2(wrapDelta(castle.y - carpet.y, size), wrapDelta(castle.x - carpet.x, size)) * 180) / Math.PI + 90
+      marker.home = home
+      marker.ready = home && ready
+      marker.alarm = castle.underAttack
+      marker.color = `rgb(${r} ${g} ${b})`
+    })
+    return markers
   }
 
   #lightDirection() {
@@ -465,6 +637,9 @@ export class MagicCarpetApp {
 
     const skyStarted = performance.now()
     this.#sky.render(this.#buffer, camera, this.#skyView)
+    const waterStarted = performance.now()
+    this.#water.render(this.#buffer, camera, this.#skyView, this.#time)
+    this.#waterMs += (performance.now() - waterStarted - this.#waterMs) * 0.1
     this.#stars.render(this.#buffer, camera, this.#skyView, this.#atmosphere, this.#day, this.#time)
     this.#buffer.flush(this.#skyView.width, this.#skyView.height)
     this.#presenter.present(this.#buffer, this.#skyView.width, this.#skyView.height, this.#skyView.pixelScale, camera.roll)
@@ -492,8 +667,10 @@ export class MagicCarpetApp {
       cursorX: this.#controls.cursorPixels().x,
       cursorY: this.#controls.cursorPixels().y,
       mana: this.#reserve,
-      balance: this.#realm.equilibrium,
-      castle: this.#castleStatus(),
+      vitals: this.#vitals,
+      progress: this.#realm.progress,
+      castle: this.#castleReport(),
+      markers: this.#castleMarkers(),
     })
     this.#carpetView.update(camera, Math.min(1.1, brightness * 1.4))
     this.#hands.update(dt, this.#time, (index) => this.#caster.readiness(index), brightness * 1.3)
@@ -502,7 +679,7 @@ export class MagicCarpetApp {
       this.#hud.setStats(
         [
           `${this.#fps.toFixed(0)} fps`,
-          `небо ${this.#skyMs.toFixed(1)} мс · ${this.#skyView.width}×${this.#skyView.height}`,
+          `небо ${this.#skyMs.toFixed(1)} мс (вода ${this.#waterMs.toFixed(1)}) · ${this.#skyView.width}×${this.#skyView.height}`,
           `земля ${this.#sceneMs.toFixed(1)} мс · ${this.#primitives} фігур`,
           `x ${carpet.x.toFixed(0)} y ${carpet.y.toFixed(0)} z ${carpet.z.toFixed(0)}`,
         ].join('\n'),

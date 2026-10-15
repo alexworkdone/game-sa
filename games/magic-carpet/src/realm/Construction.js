@@ -5,19 +5,19 @@ const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) 
 export class Construction {
   #mesh
   #terrain
-  #forest
-  #site
+  #cover
+  site
   #vertices = []
   #bounds
   #duration
   #elapsed = 0
   #onLevelled
 
-  constructor({ mesh, terrain, forest, site, reach, duration, onLevelled }) {
+  constructor({ mesh, terrain, cover, site, reach, duration, onLevelled }) {
     this.#mesh = mesh
     this.#terrain = terrain
-    this.#forest = forest
-    this.#site = site
+    this.#cover = cover
+    this.site = site
     this.#duration = duration
     this.#onLevelled = onLevelled
 
@@ -36,7 +36,7 @@ export class Construction {
     }
     this.#bounds = [ci - span, cj - span, ci + span, cj + span]
     this.reach = reach
-    forest.clear(site.x, site.y, site.plaza + 8, mesh.size)
+    cover.clear(site.x, site.y, site.plaza + 8, mesh.size)
   }
 
   get done() {
@@ -65,13 +65,13 @@ export class Construction {
     if (this.done) return
     this.#elapsed = Math.min(this.#duration, this.#elapsed + dt)
     const t = easeInOut(this.#elapsed / this.#duration)
-    const plateau = this.#site.plateau
+    const plateau = this.site.plateau
     for (const vertex of this.#vertices) {
       this.#mesh.setVertexHeight(vertex.i, vertex.j, vertex.from + (plateau - vertex.from) * vertex.weight * t)
     }
     const [i0, j0, i1, j1] = this.#bounds
     this.#mesh.rebuildAround(i0, j0, i1, j1)
-    this.#forest.settle(this.#mesh, this.#site.x, this.#site.y, this.reach, this.#mesh.size)
+    this.#cover.settle(this.#mesh, this.site.x, this.site.y, this.reach, this.#mesh.size)
     if (this.done) {
       this.#flattenHeightmap()
       this.#onLevelled()
@@ -80,7 +80,7 @@ export class Construction {
 
   #flattenHeightmap() {
     const terrain = this.#terrain
-    const { x, y, plateau, plaza } = this.#site
+    const { x, y, plateau, plaza } = this.site
     const reach = Math.ceil(this.reach)
     for (let dy = -reach; dy <= reach; dy++) {
       for (let dx = -reach; dx <= reach; dx++) {

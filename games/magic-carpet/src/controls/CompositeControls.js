@@ -72,6 +72,12 @@ export class CompositeControls {
     return this.#triggers
   }
 
+  readGearShift(now) {
+    let shift = 0
+    for (const part of this.#parts) shift += part.readGearShift?.(now) ?? 0
+    return Math.sign(shift)
+  }
+
   pickedSpell(count) {
     for (const part of this.#parts) {
       const picked = part.pickedSpell(count)

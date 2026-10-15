@@ -1,11 +1,12 @@
 import { html } from './dom.js'
 import { CastingHand } from './hands/CastingHand.js'
-import { CastleOrb, FireOrb, PossessionOrb } from './hands/orbs.js'
+import { CastleOrb, FireOrb, MagnetOrb, PossessionOrb } from './hands/orbs.js'
 
 const ORBS = {
   fire: (id) => new FireOrb(id),
   possession: (id) => new PossessionOrb(id),
   castle: (id) => new CastleOrb(id),
+  magnet: (id) => new MagnetOrb(id),
 }
 
 export class HandsView {

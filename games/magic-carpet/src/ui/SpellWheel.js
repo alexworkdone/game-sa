@@ -10,6 +10,7 @@ const GLYPHS = {
     'M-8 8 V-3 H-9.5 V-8 H-7.5 V-6 H-5.5 V-8 H-3.5 V-3 H-2 V0 H2 V-3 H3.5 V-8 H5.5 V-6 H7.5 V-8 H9.5 V-3 H8 V8 Z',
     'M-1.8 8 V4.5 A1.8 1.8 0 0 1 1.8 4.5 V8',
   ],
+  magnet: ['M-6 -8 V0 A6 6 0 0 0 6 0 V-8', 'M-6 -8 V-4.5 M6 -8 V-4.5'],
 }
 
 export const spellIcon = (id) =>

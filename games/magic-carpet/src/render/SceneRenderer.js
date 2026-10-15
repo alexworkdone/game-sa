@@ -28,7 +28,7 @@ export class SceneRenderer {
   render(context, camera, frame, time) {
     const projector = this.#projector
     projector.setup(camera, frame.focal, frame.extentX, frame.extentY, this.#config.nearPlane)
-    this.#shader.prepare(camera)
+    this.#shader.prepare()
     this.#batch.reset()
     const scene = this.#scene
     scene.camera = camera

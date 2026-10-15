@@ -19,11 +19,15 @@ export class BalloonFleet {
     this.#size = worldSize
   }
 
-  update(dt, castle) {
+  update(dt, castle, waiting) {
     if (!castle || castle.rising) return
-    const wanted = this.#config.perLevel[castle.level] ?? 0
+    const config = this.#config
+    const wanted = config.perLevel[castle.level] ?? 0
     while (this.balloons.length < wanted) this.balloons.push(this.#launch(castle, this.balloons.length))
-    for (const balloon of this.balloons) this.#steer(balloon, castle, dt)
+    for (const balloon of this.balloons) {
+      balloon.capacity = config.capacity[castle.level] ?? balloon.capacity
+      this.#steer(balloon, castle, waiting, dt)
+    }
   }
 
   #launch(castle, index) {
@@ -35,35 +39,50 @@ export class BalloonFleet {
       state: HOME,
       target: -1,
       cargo: 0,
+      capacity: this.#config.capacity[castle.level] ?? 50,
       sway: index * 1.7,
     }
   }
 
-  #steer(balloon, castle, dt) {
+  #claim(balloon, range) {
+    const mana = this.#mana
+    const target = mana.nearest(balloon.x, balloon.y, balloon.z, range, (i) => mana.owner[i] === PLAYER && !mana.reserved[i])
+    if (target < 0) return false
+    mana.reserved[target] = 1
+    balloon.target = target
+    balloon.state = OUTBOUND
+    return true
+  }
+
+  #returnHome(balloon) {
+    balloon.target = -1
+    balloon.state = balloon.cargo > 0 ? INBOUND : HOME
+  }
+
+  #steer(balloon, castle, waiting, dt) {
     const mana = this.#mana
     if (balloon.state === HOME) {
-      const target = mana.nearest(balloon.x, balloon.y, balloon.z, Infinity, (i) => mana.owner[i] === PLAYER && !mana.reserved[i])
-      if (target >= 0) {
-        mana.reserved[target] = 1
-        balloon.target = target
-        balloon.state = OUTBOUND
-      } else {
-        this.#fly(balloon, castle.x, castle.y, castle.plateau + 34, dt, 0.4)
-      }
+      if (waiting || !this.#claim(balloon, Infinity)) this.#hover(balloon, castle, dt)
       return
     }
 
     if (balloon.state === OUTBOUND) {
       const target = balloon.target
+      if (waiting) {
+        mana.reserved[target] = 0
+        this.#returnHome(balloon)
+        return
+      }
       if (!mana.isFree(target) || mana.owner[target] !== PLAYER) {
-        balloon.state = HOME
+        if (!this.#claim(balloon, this.#config.detour)) this.#returnHome(balloon)
         return
       }
       const arrived = this.#fly(balloon, mana.x[target], mana.y[target], mana.z[target] + 4, dt, 1)
-      if (arrived) {
-        balloon.cargo = mana.collect(target)
-        balloon.state = INBOUND
-      }
+      if (!arrived) return
+      balloon.cargo += mana.drain(target, balloon.capacity - balloon.cargo)
+      mana.reserved[target] = 0
+      const full = balloon.cargo >= balloon.capacity - 0.5
+      if (full || !this.#claim(balloon, this.#config.detour)) this.#returnHome(balloon)
       return
     }
 
@@ -75,19 +94,28 @@ export class BalloonFleet {
     }
   }
 
+  #hover(balloon, castle, dt) {
+    const reach = this.#config.hoverRing
+    const x = castle.x + Math.cos(balloon.sway) * reach
+    const y = castle.y + Math.sin(balloon.sway) * reach
+    this.#fly(balloon, x, y, castle.plateau + 34, dt, 0.4)
+  }
+
   #fly(balloon, x, y, z, dt, pace) {
     const config = this.#config
     const dx = wrapDelta(x - balloon.x, this.#size)
     const dy = wrapDelta(y - balloon.y, this.#size)
     const distance = Math.hypot(dx, dy)
-    const step = Math.min(distance, config.speed * pace * dt)
+    const load = 1 - 0.3 * (balloon.cargo / balloon.capacity)
+    const step = Math.min(distance, config.speed * pace * load * dt)
     if (distance > 1e-3) {
       balloon.x = mod(balloon.x + (dx / distance) * step, this.#size)
       balloon.y = mod(balloon.y + (dy / distance) * step, this.#size)
     }
-    const cruise = this.#ground.groundAt(balloon.x, balloon.y) + config.cruise
-    const height = distance > 24 ? Math.max(cruise, z) : z
-    balloon.z = damp(balloon.z, Math.max(height, this.#ground.groundAt(balloon.x, balloon.y) + 6), 1.6, dt)
-    return distance < config.pickupRange && Math.abs(balloon.z - z) < 3
+    const ground = this.#ground.groundAt(balloon.x, balloon.y)
+    const lowest = ground + 6
+    const goal = Math.max(distance > 24 ? Math.max(ground + config.cruise, z) : z, lowest)
+    balloon.z = damp(balloon.z, goal, 1.6, dt)
+    return distance < config.pickupRange && Math.abs(balloon.z - Math.max(z, lowest)) < 3
   }
 }

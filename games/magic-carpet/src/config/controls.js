@@ -10,9 +10,14 @@ export const BINDINGS = {
   spell1: ['Digit1', 'Numpad1'],
   spell2: ['Digit2', 'Numpad2'],
   spell3: ['Digit3', 'Numpad3'],
+  spell4: ['Digit4', 'Numpad4'],
   pause: ['Escape', 'KeyP'],
   timeWarp: ['KeyT'],
   stats: ['F3'],
+}
+
+export const KEYS = {
+  doubleTap: 0.32,
 }
 
 export const AIM = {

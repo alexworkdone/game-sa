@@ -1,5 +1,3 @@
-import { FACE_LAND } from '../../world/TerrainMesh.js'
-
 export class TerrainLayer {
   #mesh
 
@@ -9,20 +7,17 @@ export class TerrainLayer {
 
   collect(scene) {
     const mesh = this.#mesh
-    const { projector, batch, shader, camera, radius, lateralLimit, time } = scene
+    const { projector, batch, shader, camera, radius, lateralLimit } = scene
     const spacing = mesh.spacing
     const cells = mesh.cells
     const mask = mesh.mask
     const quadCount = mesh.quadCount
     const slots = mesh.slots
-    const kinds = mesh.kind
     const counts = mesh.count
     const vertices = mesh.vertices
     const normals = mesh.normal
     const colors = mesh.color
     const centroids = mesh.centroid
-    const depths = mesh.depth
-    const phases = mesh.phase
     const inX = projector.inX
     const inY = projector.inY
     const inZ = projector.inZ
@@ -62,11 +57,10 @@ export class TerrainLayer {
           const rx = centroids[c] + offsetX
           const ry = centroids[c + 1] + offsetY
           const rz = centroids[c + 2]
-          const land = kinds[f] === FACE_LAND
           const nx = normals[c]
           const ny = normals[c + 1]
           const nz = normals[c + 2]
-          if (land && (camZ - rz) * nz - rx * nx - ry * ny < 0) continue
+          if ((camZ - rz) * nz - rx * nx - ry * ny < 0) continue
 
           const n = counts[f]
           const v = f * 12
@@ -80,9 +74,7 @@ export class TerrainLayer {
 
           const distance = Math.sqrt(rx * rx + ry * ry)
           const inv = distance > 1e-3 ? 1 / distance : 0
-          const color = land
-            ? shader.shade(colors[f], nx, ny, nz, rx + camX, ry + camY, rz, distance, rx * inv, ry * inv)
-            : shader.shadeWater(depths[f], rx + camX, ry + camY, distance, rx * inv, ry * inv, phases[f], time)
+          const color = shader.shade(colors[f], nx, ny, nz, rx + camX, ry + camY, rz, distance, rx * inv, ry * inv)
           batch.polygon(distance, color, projector.outX, projector.outY, m)
         }
       }

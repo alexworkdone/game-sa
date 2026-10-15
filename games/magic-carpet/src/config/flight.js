@@ -6,6 +6,7 @@ export const FLIGHT = {
   drag: 0.95,
   verticalDrag: 1.6,
   maxSpeed: 34,
+  gears: [1, 2, 3, 4],
   maxPitch: 0.7,
   minClearance: 3.5,
   lookAhead: 0.55,

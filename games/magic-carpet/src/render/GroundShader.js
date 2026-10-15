@@ -9,30 +9,27 @@ export class GroundShader {
   #clouds
   #config
   #seaLevel
-  #palette
   #radius = 1
   #fadeStart = 1
-  #camZ = 0
   #sunHX = 1
   #sunHY = 0
   #scatter = 0
   #lightOn = false
   #lightZSafe = 1
+  #tint = [0, 0, 0]
 
-  constructor({ atmosphere, shadows, clouds, config, seaLevel, palette }) {
+  constructor({ atmosphere, shadows, clouds, config, seaLevel }) {
     this.#atmosphere = atmosphere
     this.#shadows = shadows
     this.#clouds = clouds
     this.#config = config
     this.#seaLevel = seaLevel
-    this.#palette = palette
   }
 
-  prepare(camera) {
+  prepare() {
     const atmosphere = this.#atmosphere
     this.#radius = this.#config.radius
     this.#fadeStart = this.#radius * this.#config.edgeFog
-    this.#camZ = camera.z
     const horizontal = Math.hypot(atmosphere.sunX, atmosphere.sunY) || 1
     this.#sunHX = atmosphere.sunX / horizontal
     this.#sunHY = atmosphere.sunY / horizontal
@@ -49,12 +46,16 @@ export class GroundShader {
     return this.#sunHY
   }
 
+  get lightOn() {
+    return this.#lightOn
+  }
+
   shade(color, nx, ny, nz, wx, wy, wz, distance, dirX, dirY) {
     const atmosphere = this.#atmosphere
     let direct = 0
     if (this.#lightOn) {
       const ndl = nx * atmosphere.lightX + ny * atmosphere.lightY + nz * atmosphere.lightZ
-      if (ndl > 0) direct = ndl * this.#sunlight(wx, wy, wz)
+      if (ndl > 0) direct = ndl * this.sunlight(wx, wy, wz)
     }
     const ambient = 0.78 + 0.22 * nz
     let r = (color & 255) * (atmosphere.ambientR * ambient + atmosphere.lightR * direct)
@@ -63,52 +64,7 @@ export class GroundShader {
     return this.#fog(r, g, b, distance, wz, dirX, dirY)
   }
 
-  shadeWater(depth, wx, wy, distance, dirX, dirY, phase, time) {
-    const atmosphere = this.#atmosphere
-    const palette = this.#palette
-    const t = depth > 10 ? 1 : depth / 10
-    const from = t < 0.5 ? palette.waterShallow : palette.waterMid
-    const to = t < 0.5 ? palette.waterMid : palette.waterDeep
-    const k = t < 0.5 ? t * 2 : (t - 0.5) * 2
-    const sea = this.#seaLevel
-    const sun = this.#lightOn ? Math.max(0, atmosphere.lightZ) * 0.6 * this.#sunlight(wx, wy, sea) : 0
-    const shimmer = 1 + Math.sin(time * 1.3 + phase * 40) * this.#config.waterShimmer
-    let r = (from[0] + (to[0] - from[0]) * k) * (atmosphere.ambientR + atmosphere.lightR * sun) * shimmer
-    let g = (from[1] + (to[1] - from[1]) * k) * (atmosphere.ambientG + atmosphere.lightG * sun) * shimmer
-    let b = (from[2] + (to[2] - from[2]) * k) * (atmosphere.ambientB + atmosphere.lightB * sun) * shimmer
-
-    const height = this.#camZ - sea
-    const elevation = height / Math.sqrt(distance * distance + height * height)
-    const m = 1 - elevation
-    const fresnel = 0.04 + 0.6 * m * m * m * m * m
-    let sky = elevation * 1.6
-    if (sky > 1) sky = 1
-    sky = 1 - (1 - sky) * (1 - sky)
-    r += (atmosphere.horizonR + (atmosphere.zenithR - atmosphere.horizonR) * sky - r) * fresnel
-    g += (atmosphere.horizonG + (atmosphere.zenithG - atmosphere.horizonG) * sky - g) * fresnel
-    b += (atmosphere.horizonB + (atmosphere.zenithB - atmosphere.horizonB) * sky - b) * fresnel
-
-    if (atmosphere.sunVisible > 0 && atmosphere.sunZ > 0) {
-      const inv = 1 / Math.sqrt(distance * distance + height * height)
-      const tilt = Math.sin(time * 2.1 + phase * 97) * 0.05
-      const reflect =
-        dirX * distance * inv * atmosphere.sunX + dirY * distance * inv * atmosphere.sunY + height * inv * atmosphere.sunZ + tilt
-      if (reflect > 0.9) {
-        let p = reflect * reflect
-        p *= p
-        p *= p
-        p *= p
-        p *= p
-        const glint = p * this.#config.glint * atmosphere.sunVisible
-        r += atmosphere.lightR * 255 * glint
-        g += atmosphere.lightG * 255 * glint
-        b += atmosphere.lightB * 255 * glint
-      }
-    }
-    return this.#fog(r, g, b, distance, sea, dirX, dirY)
-  }
-
-  #sunlight(wx, wy, wz) {
+  sunlight(wx, wy, wz) {
     const shadows = this.#shadows
     const sx = (((wx + ORIGIN) | 0) >> shadows.shift) & shadows.mask
     const sy = (((wy + ORIGIN) | 0) >> shadows.shift) & shadows.mask
@@ -124,7 +80,7 @@ export class GroundShader {
     return light
   }
 
-  #fog(r, g, b, distance, height, dirX, dirY) {
+  fogAmount(distance, height) {
     const atmosphere = this.#atmosphere
     let fog = 1 - Math.exp(-distance * atmosphere.fogDensity)
     if (distance > this.#fadeStart) {
@@ -135,14 +91,23 @@ export class GroundShader {
     }
     const lift = height - this.#seaLevel
     const mist = atmosphere.heightFog * Math.exp(-(lift > 0 ? lift : 0) / this.#config.heightFogScale) * (1 - Math.exp(-distance / 120))
-    fog = 1 - (1 - fog) * (1 - mist)
+    return 1 - (1 - fog) * (1 - mist)
+  }
 
+  fogTint(dirX, dirY, out) {
+    const atmosphere = this.#atmosphere
     const toward = dirX * this.#sunHX + dirY * this.#sunHY
     let scatter = toward > 0 ? toward * toward : 0
     scatter = scatter * scatter * this.#scatter
-    const fogR = atmosphere.fogR + (atmosphere.scatterR - atmosphere.fogR) * scatter
-    const fogG = atmosphere.fogG + (atmosphere.scatterG - atmosphere.fogG) * scatter
-    const fogB = atmosphere.fogB + (atmosphere.scatterB - atmosphere.fogB) * scatter
-    return pack(r + (fogR - r) * fog, g + (fogG - g) * fog, b + (fogB - b) * fog)
+    out[0] = atmosphere.fogR + (atmosphere.scatterR - atmosphere.fogR) * scatter
+    out[1] = atmosphere.fogG + (atmosphere.scatterG - atmosphere.fogG) * scatter
+    out[2] = atmosphere.fogB + (atmosphere.scatterB - atmosphere.fogB) * scatter
+    return out
+  }
+
+  #fog(r, g, b, distance, height, dirX, dirY) {
+    const fog = this.fogAmount(distance, height)
+    const tint = this.fogTint(dirX, dirY, this.#tint)
+    return pack(r + (tint[0] - r) * fog, g + (tint[1] - g) * fog, b + (tint[2] - b) * fog)
   }
 }

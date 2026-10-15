@@ -5,6 +5,8 @@ export const PLAYER = 1
 
 const FREE = 1
 
+export const manaRadius = (value, scale) => scale * Math.cbrt(Math.max(value, 0.5))
+
 export class ManaField {
   #size
 
@@ -44,11 +46,21 @@ export class ManaField {
     for (let n = 0; n < count; n++) {
       const x = random.range(0, this.#size)
       const y = random.range(0, this.#size)
-      const value = Math.round(random.range(config.minValue, config.maxValue))
-      this.add(x, y, ground.groundAt(x, y) + config.hover, value)
+      let roll = random.next()
+      const tier = config.tiers.find((candidate) => (roll -= candidate.share) <= 0) ?? config.tiers[0]
+      const value = Math.round(random.range(tier.min, tier.max))
+      this.add(x, y, ground.groundAt(x, y) + config.hover + manaRadius(value, config.sizeScale), value)
       total += value
     }
     return total
+  }
+
+  settle(ground, x, y, radius, hover, sizeScale) {
+    for (let i = 0; i < this.capacity; i++) {
+      if (this.state[i] !== FREE) continue
+      if (Math.hypot(wrapDelta(this.x[i] - x, this.#size), wrapDelta(this.y[i] - y, this.#size)) > radius) continue
+      this.z[i] = Math.max(this.z[i], ground.groundAt(this.x[i], this.y[i]) + hover + manaRadius(this.value[i], sizeScale))
+    }
   }
 
   nearest(x, y, z, radius, accept) {
@@ -70,8 +82,16 @@ export class ManaField {
     this.reserved[i] = 0
   }
 
-  collect(i) {
+  merge(target, i) {
+    this.value[target] += this.value[i]
     this.state[i] = 0
-    return this.value[i]
+    this.reserved[i] = 0
+  }
+
+  drain(i, amount) {
+    const taken = Math.min(this.value[i], amount)
+    this.value[i] -= taken
+    if (this.value[i] < 0.5) this.state[i] = 0
+    return taken
   }
 }

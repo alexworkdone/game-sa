@@ -28,6 +28,17 @@ export class FlightModel {
     carpet.pitch = damp(carpet.pitch, targetPitch, aim.pitchFollow, dt)
   }
 
+  shiftGear(carpet, delta) {
+    const gear = clamp(carpet.gear + delta, 0, this.#config.gears.length - 1)
+    if (gear === carpet.gear) return false
+    carpet.gear = gear
+    return true
+  }
+
+  speedOf(carpet) {
+    return this.#config.gears[carpet.gear]
+  }
+
   step(carpet, intent, dt) {
     const config = this.#config
     carpet.remember()
@@ -36,7 +47,8 @@ export class FlightModel {
     const forwardY = Math.sin(carpet.yaw)
     const rightX = -forwardY
     const rightY = forwardX
-    const thrust = intent.thrust > 0 ? intent.thrust * config.thrust : intent.thrust * config.reverseThrust
+    const gear = this.speedOf(carpet)
+    const thrust = intent.thrust > 0 ? intent.thrust * config.thrust * gear : intent.thrust * config.reverseThrust
     const strafe = intent.strafe * config.strafe
 
     carpet.vx += (forwardX * thrust + rightX * strafe) * dt
@@ -49,8 +61,9 @@ export class FlightModel {
     carpet.vz *= Math.exp(-config.verticalDrag * dt)
 
     const speed = Math.hypot(carpet.vx, carpet.vy, carpet.vz)
-    if (speed > config.maxSpeed) {
-      const k = config.maxSpeed / speed
+    const maxSpeed = config.maxSpeed * gear
+    if (speed > maxSpeed) {
+      const k = maxSpeed / speed
       carpet.vx *= k
       carpet.vy *= k
       carpet.vz *= k

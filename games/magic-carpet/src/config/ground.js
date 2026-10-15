@@ -1,4 +1,5 @@
 export const GROUND = {
+  reliefRadius: 22,
   spacing: 16,
   jitter: 3.5,
   smoothing: 5,
@@ -6,30 +7,69 @@ export const GROUND = {
   nearPlane: 0.6,
   heightFogScale: 18,
   edgeFog: 0.72,
-  waterShimmer: 0.05,
-  glint: 2.4,
+}
+
+export const WATER = {
+  shallow: [92, 206, 200],
+  deep: [18, 72, 128],
+  depthScale: 6,
+  shore: [214, 200, 150],
+  dryMargin: 2.5,
+  foam: [244, 250, 252],
+  foamDepth: 1.5,
+  foamStrength: 0.75,
+  foamSpeed: 1.4,
+  foamRipple: 4,
+  waves: { size: 128, trains: 14, wind: [3.2, 1.4], spread: 1.2, reach: [3, 11] },
+  swell: { texel: 0.42, drift: [1.1, 0.5], gain: 1 },
+  ripple: { texel: 0.17, drift: [-0.5, 0.8], gain: 0.55 },
+  waveStrength: 0.11,
+  waveFade: 90,
+  reflectance: 0.04,
+  cloudReflection: 0.85,
+  glint: 1.1,
+  sheen: 0.14,
 }
 
 export const GROUND_PALETTE = {
   beach: [238, 218, 162],
+  wetSand: [212, 192, 140],
   sand: [234, 196, 122],
   sandShade: [222, 180, 106],
+  scrub: [172, 166, 96],
+  meadowDeep: [70, 148, 86],
+  meadowDeepShade: [62, 136, 80],
   grassLush: [112, 180, 76],
   grassLushShade: [98, 166, 68],
-  grassDry: [166, 188, 88],
-  grassDryShade: [152, 176, 80],
+  grassDry: [170, 190, 84],
+  grassDryShade: [156, 178, 76],
+  grassGold: [208, 190, 100],
+  grassGoldShade: [194, 176, 90],
+  bloom: [
+    [246, 222, 96],
+    [244, 240, 228],
+    [196, 150, 222],
+    [236, 124, 112],
+  ],
+  dirt: [156, 124, 86],
+  dirtShade: [142, 112, 78],
+  marsh: [96, 132, 88],
+  marshShade: [84, 120, 86],
   forestFloor: [70, 128, 62],
+  forestMoss: [84, 140, 64],
   alpine: [132, 150, 96],
+  heath: [156, 126, 134],
+  heathShade: [140, 112, 122],
+  scree: [182, 174, 160],
   rock: [140, 130, 120],
   rockShade: [118, 110, 104],
+  rockWarm: [156, 132, 112],
   rockLight: [170, 162, 154],
   snow: [242, 246, 252],
+  snowShade: [222, 232, 246],
   plaza: [200, 178, 138],
   plazaShade: [188, 166, 126],
   plazaBorder: [150, 126, 92],
-  waterShallow: [70, 184, 200],
-  waterMid: [42, 136, 186],
-  waterDeep: [28, 88, 152],
 }
 
 export const TREES = {
@@ -50,6 +90,48 @@ export const TREES = {
   ],
   autumn: [204, 156, 64],
   trunk: [116, 82, 54],
+}
+
+export const SCATTER = {
+  spacing: 6,
+  jitter: 2.6,
+  radius: 300,
+  detailRadius: 170,
+  smallRadius: 120,
+  stone: [
+    [150, 142, 132],
+    [128, 122, 116],
+    [164, 152, 136],
+  ],
+  sandstone: [
+    [196, 158, 112],
+    [180, 140, 98],
+  ],
+  bush: [
+    [58, 120, 56],
+    [72, 136, 58],
+    [90, 146, 62],
+  ],
+  blossom: [
+    [222, 132, 178],
+    [240, 232, 214],
+  ],
+  dryBush: [138, 134, 78],
+  flowers: [
+    [255, 226, 84],
+    [250, 248, 238],
+    [204, 150, 238],
+    [246, 108, 96],
+    [120, 170, 255],
+  ],
+  tufts: [
+    [86, 150, 62],
+    [110, 162, 66],
+  ],
+  reeds: [
+    [124, 138, 74],
+    [150, 150, 86],
+  ],
 }
 
 export const CASTLE = {
